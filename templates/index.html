@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Comprehensive Epic/Story Generator - AI-Powered Documentation</title>
+    <title>Epic/Story Generator - Project Management Workflow</title>
     <style>
         * {
             margin: 0;
@@ -19,14 +19,14 @@
         }
 
         .container {
-            max-width: 1200px;
+            max-width: 1400px;
             margin: 0 auto;
         }
 
         .header {
             text-align: center;
             color: white;
-            margin-bottom: 40px;
+            margin-bottom: 30px;
         }
 
         .header h1 {
@@ -35,45 +35,124 @@
             text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
         }
 
-        .header p {
-            font-size: 1.1rem;
-            opacity: 0.9;
+        /* Progress Stepper */
+        .stepper {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
         }
 
+        .stepper-items {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .stepper-item {
+            flex: 1;
+            text-align: center;
+            position: relative;
+        }
+
+        .stepper-item:not(:last-child)::after {
+            content: '';
+            position: absolute;
+            top: 25px;
+            left: 60%;
+            right: -40%;
+            height: 3px;
+            background: #e0e0e0;
+            z-index: 0;
+        }
+
+        .stepper-item.active:not(:last-child)::after,
+        .stepper-item.completed:not(:last-child)::after {
+            background: #667eea;
+        }
+
+        .stepper-circle {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: #e0e0e0;
+            color: #999;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            font-size: 1.2rem;
+            position: relative;
+            z-index: 1;
+            margin-bottom: 8px;
+        }
+
+        .stepper-item.active .stepper-circle {
+            background: #667eea;
+            color: white;
+        }
+
+        .stepper-item.completed .stepper-circle {
+            background: #28a745;
+            color: white;
+        }
+
+        .stepper-label {
+            font-size: 0.9rem;
+            color: #666;
+            font-weight: 500;
+        }
+
+        .stepper-item.active .stepper-label {
+            color: #667eea;
+            font-weight: 600;
+        }
+
+        /* Screen Container */
         .main-card {
             background: white;
             border-radius: 20px;
             box-shadow: 0 20px 60px rgba(0,0,0,0.3);
             overflow: hidden;
+            min-height: 500px;
         }
 
-        .input-section {
+        .screen {
+            display: none;
             padding: 40px;
-            background: linear-gradient(to bottom, #f8f9fa, white);
         }
 
+        .screen.active {
+            display: block;
+            animation: fadeIn 0.3s;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Screen 1: Input */
         .input-label {
-            font-size: 1.2rem;
+            font-size: 1.3rem;
             font-weight: 600;
             color: #333;
             margin-bottom: 15px;
             display: block;
         }
 
-        .input-group {
-            margin-bottom: 20px;
-        }
-
         #descriptionInput {
             width: 100%;
-            padding: 15px;
-            font-size: 1rem;
+            padding: 20px;
+            font-size: 1.1rem;
             border: 2px solid #e0e0e0;
-            border-radius: 10px;
+            border-radius: 12px;
             resize: vertical;
-            min-height: 120px;
+            min-height: 200px;
             transition: border-color 0.3s;
             font-family: inherit;
+            margin-bottom: 20px;
         }
 
         #descriptionInput:focus {
@@ -81,36 +160,27 @@
             border-color: #667eea;
         }
 
-        .button-group {
-            display: flex;
-            gap: 10px;
-            flex-wrap: wrap;
-        }
-
         .btn {
-            padding: 12px 30px;
-            font-size: 1rem;
+            padding: 15px 35px;
+            font-size: 1.1rem;
             font-weight: 600;
             border: none;
-            border-radius: 10px;
+            border-radius: 12px;
             cursor: pointer;
             transition: all 0.3s;
             display: inline-flex;
             align-items: center;
-            gap: 8px;
+            gap: 10px;
         }
 
         .btn-primary {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
-            flex: 1;
-            min-width: 200px;
-            justify-content: center;
         }
 
         .btn-primary:hover:not(:disabled) {
             transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
         }
 
         .btn-primary:disabled {
@@ -124,136 +194,100 @@
             border: 2px solid #667eea;
         }
 
-        .btn-secondary:hover {
-            background: #f8f9fa;
+        .btn-success {
+            background: #28a745;
+            color: white;
         }
 
-        .examples-section {
-            margin-top: 20px;
-            padding-top: 20px;
-            border-top: 1px solid #e0e0e0;
+        .btn-danger {
+            background: #dc3545;
+            color: white;
         }
 
-        .examples-label {
-            font-size: 0.9rem;
-            color: #666;
-            margin-bottom: 10px;
+        .btn-warning {
+            background: #ffc107;
+            color: #333;
         }
 
-        .example-chips {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 8px;
-        }
-
-        .example-chip {
-            padding: 8px 15px;
-            background: #f0f0f0;
-            border: 1px solid #e0e0e0;
-            border-radius: 20px;
-            font-size: 0.85rem;
-            cursor: pointer;
+        /* Screen 2: Review Epics */
+        .epic-container {
+            margin-bottom: 25px;
+            border: 2px solid #e0e0e0;
+            border-radius: 12px;
+            overflow: hidden;
             transition: all 0.3s;
         }
 
-        .example-chip:hover {
-            background: #667eea;
+        .epic-container.approved {
+            border-color: #28a745;
+            background: #f0fff4;
+        }
+
+        .epic-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
-            border-color: #667eea;
-        }
-
-        .results-section {
-            padding: 40px;
-            display: none;
-        }
-
-        .results-section.show {
-            display: block;
-        }
-
-        .result-card {
-            background: #f8f9fa;
-            border-radius: 15px;
-            padding: 25px;
-            margin-bottom: 20px;
-            border-left: 4px solid #667eea;
-        }
-
-        .result-title {
-            font-size: 1.1rem;
-            font-weight: 600;
-            color: #667eea;
-            margin-bottom: 10px;
+            padding: 20px;
+            cursor: pointer;
             display: flex;
+            justify-content: space-between;
             align-items: center;
-            gap: 8px;
         }
 
-        .result-content {
-            color: #333;
-            font-size: 1rem;
+        .epic-container.approved .epic-header {
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+        }
+
+        .epic-title {
+            font-size: 1.3rem;
+            font-weight: 600;
+            flex: 1;
+        }
+
+        .epic-toggle {
+            font-size: 1.5rem;
+            transition: transform 0.3s;
+        }
+
+        .epic-container.expanded .epic-toggle {
+            transform: rotate(180deg);
+        }
+
+        .epic-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease;
+        }
+
+        .epic-container.expanded .epic-content {
+            max-height: 5000px;
+        }
+
+        .epic-body {
+            padding: 25px;
+            background: #f8f9fa;
+        }
+
+        .epic-description {
+            margin-bottom: 20px;
+            padding: 15px;
+            background: white;
+            border-radius: 8px;
             line-height: 1.6;
         }
 
-        .result-list {
-            list-style: none;
-            padding-left: 0;
+        .user-story {
+            background: white;
+            border-left: 4px solid #667eea;
+            padding: 20px;
+            margin-bottom: 15px;
+            border-radius: 8px;
         }
 
-        .result-list li {
-            padding: 8px 0;
-            padding-left: 25px;
-            position: relative;
-        }
-
-        .result-list li:before {
-            content: "✓";
-            position: absolute;
-            left: 0;
+        .story-header {
+            font-weight: 600;
             color: #667eea;
-            font-weight: bold;
-        }
-
-        .loading {
-            text-align: center;
-            padding: 40px;
-            color: #667eea;
-        }
-
-        .spinner {
-            border: 3px solid #f3f3f3;
-            border-top: 3px solid #667eea;
-            border-radius: 50%;
-            width: 40px;
-            height: 40px;
-            animation: spin 1s linear infinite;
-            margin: 0 auto 20px;
-        }
-
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-
-        .error-message {
-            background: #fee;
-            border-left: 4px solid #f00;
-            padding: 15px;
-            border-radius: 5px;
-            color: #c00;
-            margin-bottom: 20px;
-        }
-
-        .empty-state {
-            text-align: center;
-            padding: 60px 20px;
-            color: #999;
-        }
-
-        .empty-state-icon {
-            font-size: 4rem;
-            margin-bottom: 20px;
-            opacity: 0.3;
+            margin-bottom: 10px;
+            font-size: 1.1rem;
         }
 
         .badge {
@@ -264,6 +298,100 @@
             border-radius: 12px;
             font-size: 0.85rem;
             font-weight: 600;
+            margin-left: 8px;
+        }
+
+        .badge-success {
+            background: #28a745;
+        }
+
+        .badge-warning {
+            background: #ffc107;
+            color: #333;
+        }
+
+        .test-case {
+            margin-top: 15px;
+            padding: 15px;
+            background: #f0f0f0;
+            border-radius: 8px;
+        }
+
+        .test-case-title {
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .epic-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 2px solid #e0e0e0;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 60px 20px;
+            color: #667eea;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Screen 3: Approved Epics */
+        .approved-summary {
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 12px;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+
+        .approved-summary h2 {
+            font-size: 2rem;
+            margin-bottom: 10px;
+        }
+
+        .complete-output {
+            background: #f5f5f5;
+            padding: 25px;
+            border-radius: 12px;
+            font-family: 'Courier New', monospace;
+            white-space: pre-wrap;
+            font-size: 0.95rem;
+            line-height: 1.6;
+            overflow-x: auto;
+            border: 2px solid #e0e0e0;
+        }
+
+        .error-message {
+            background: #fee;
+            border-left: 4px solid #f00;
+            padding: 20px;
+            border-radius: 8px;
+            color: #c00;
+            margin: 20px 0;
+        }
+
+        .navigation-buttons {
+            display: flex;
+            gap: 15px;
+            margin-top: 30px;
+            justify-content: space-between;
         }
 
         @media (max-width: 768px) {
@@ -271,7 +399,7 @@
                 font-size: 1.8rem;
             }
 
-            .input-section, .results-section {
+            .screen {
                 padding: 20px;
             }
 
@@ -279,129 +407,188 @@
                 width: 100%;
                 justify-content: center;
             }
+
+            .navigation-buttons {
+                flex-direction: column;
+            }
+
+            .stepper-items {
+                font-size: 0.85rem;
+            }
+
+            .stepper-circle {
+                width: 40px;
+                height: 40px;
+                font-size: 1rem;
+            }
         }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
-            <h1>🚀 Comprehensive Epic/Story Generator</h1>
-            <p>AI-Powered Project Planning - Generate detailed epics, user stories, acceptance criteria, and test cases</p>
+            <h1>🚀 Epic/Story Generator</h1>
+            <p>AI-Powered Project Planning Workflow</p>
         </div>
 
-        <div class="main-card">
-            <!-- Input Section -->
-            <div class="input-section">
-                <div class="input-group">
-                    <label for="descriptionInput" class="input-label">
-                        Enter Your Project Description
-                    </label>
-                    <textarea
-                        id="descriptionInput"
-                        placeholder="Example: Build a mobile app for tracking daily water intake with push notifications and analytics..."
-                    ></textarea>
+        <!-- Progress Stepper -->
+        <div class="stepper">
+            <div class="stepper-items">
+                <div class="stepper-item active" id="step1">
+                    <div class="stepper-circle">1</div>
+                    <div class="stepper-label">Input Description</div>
                 </div>
+                <div class="stepper-item" id="step2">
+                    <div class="stepper-circle">2</div>
+                    <div class="stepper-label">Review & Approve Epics</div>
+                </div>
+                <div class="stepper-item" id="step3">
+                    <div class="stepper-circle">3</div>
+                    <div class="stepper-label">Approved Documentation</div>
+                </div>
+            </div>
+        </div>
 
-                <div class="button-group">
-                    <button id="generateBtn" class="btn btn-primary">
-                        <span id="btnText">✨ Generate Comprehensive Documentation</span>
-                    </button>
-                    <button id="clearBtn" class="btn btn-secondary">
+        <!-- Main Content Card -->
+        <div class="main-card">
+            <!-- Screen 1: Input Description -->
+            <div id="screen1" class="screen active">
+                <label for="descriptionInput" class="input-label">
+                    📝 Enter Your Project Description
+                </label>
+                <textarea
+                    id="descriptionInput"
+                    placeholder="Example: Build a comprehensive health and fitness tracking mobile application with user authentication, workout logging, nutrition tracking, progress analytics, social features, and integration with wearable devices..."
+                ></textarea>
+
+                <div class="navigation-buttons">
+                    <button class="btn btn-secondary" onclick="clearInput()">
                         🗑️ Clear
                     </button>
-                </div>
-
-                <div class="examples-section">
-                    <div class="examples-label">
-                        <strong>Quick Examples:</strong> Click to try
-                    </div>
-                    <div class="example-chips" id="exampleChips">
-                        <!-- Examples will be loaded here -->
-                    </div>
+                    <button class="btn btn-primary" id="generateBtn" onclick="generateDocumentation()">
+                        ✨ Generate Epics
+                    </button>
                 </div>
             </div>
 
-            <!-- Results Section -->
-            <div id="resultsSection" class="results-section">
-                <!-- Results will be displayed here -->
+            <!-- Screen 2: Review Epics -->
+            <div id="screen2" class="screen">
+                <h2 style="margin-bottom: 20px; color: #333;">📋 Review Generated Epics</h2>
+                <p style="margin-bottom: 30px; color: #666;">Review each epic and approve, cancel, or regenerate as needed.</p>
+
+                <div id="epicsContainer">
+                    <!-- Epics will be dynamically loaded here -->
+                </div>
+
+                <div class="navigation-buttons">
+                    <button class="btn btn-secondary" onclick="goToScreen(1)">
+                        ← Back to Input
+                    </button>
+                    <button class="btn btn-success" id="viewApprovedBtn" onclick="goToScreen(3)">
+                        View Approved Epics →
+                    </button>
+                </div>
+            </div>
+
+            <!-- Screen 3: Approved Epics -->
+            <div id="screen3" class="screen">
+                <div class="approved-summary">
+                    <h2>✅ Approved Project Documentation</h2>
+                    <p id="approvedCount">0 epics approved</p>
+                </div>
+
+                <div id="approvedEpicsContainer">
+                    <!-- Approved epics will be displayed here -->
+                </div>
+
+                <h3 style="margin: 30px 0 15px 0; color: #333;">📄 Complete Output</h3>
+                <div id="completeOutput" class="complete-output">
+                    <!-- Complete formatted output will be shown here -->
+                </div>
+
+                <div class="navigation-buttons">
+                    <button class="btn btn-secondary" onclick="goToScreen(2)">
+                        ← Back to Review
+                    </button>
+                    <button class="btn btn-primary" onclick="startNew()">
+                        🔄 Start New Project
+                    </button>
+                </div>
             </div>
         </div>
     </div>
 
     <script>
-        // DOM Elements
-        const descriptionInput = document.getElementById('descriptionInput');
-        const generateBtn = document.getElementById('generateBtn');
-        const clearBtn = document.getElementById('clearBtn');
-        const resultsSection = document.getElementById('resultsSection');
-        const btnText = document.getElementById('btnText');
-        const exampleChips = document.getElementById('exampleChips');
+        // Global state
+        let allEpics = [];
+        let projectDescription = '';
+        let generatorUsed = '';
 
-        // Load examples on page load
-        loadExamples();
-
-        // Event Listeners
-        generateBtn.addEventListener('click', generateEpic);
-        clearBtn.addEventListener('click', clearAll);
-        descriptionInput.addEventListener('keydown', (e) => {
-            if (e.ctrlKey && e.key === 'Enter') {
-                generateEpic();
-            }
-        });
-
-        // Load example descriptions
-        async function loadExamples() {
-            try {
-                const response = await fetch('/api/examples');
-                const data = await response.json();
-
-                if (data.success) {
-                    exampleChips.innerHTML = data.examples
-                        .slice(0, 5) // Show first 5 examples
-                        .map(example => {
-                            const short = example.substring(0, 50) + '...';
-                            return `<div class="example-chip" onclick="useExample('${escapeHtml(example)}')">${escapeHtml(short)}</div>`;
-                        })
-                        .join('');
+        // Screen navigation
+        function goToScreen(screenNumber) {
+            // Update stepper
+            document.querySelectorAll('.stepper-item').forEach((item, index) => {
+                item.classList.remove('active', 'completed');
+                if (index + 1 < screenNumber) {
+                    item.classList.add('completed');
+                } else if (index + 1 === screenNumber) {
+                    item.classList.add('active');
                 }
-            } catch (error) {
-                console.error('Error loading examples:', error);
+            });
+
+            // Update screens
+            document.querySelectorAll('.screen').forEach(screen => {
+                screen.classList.remove('active');
+            });
+            document.getElementById(`screen${screenNumber}`).classList.add('active');
+
+            // Update screen 3 if navigating there
+            if (screenNumber === 3) {
+                updateApprovedScreen();
             }
         }
 
-        // Use an example
-        function useExample(example) {
-            descriptionInput.value = example;
-            descriptionInput.focus();
-        }
-
-        // Generate epic and user story
-        async function generateEpic() {
-            const description = descriptionInput.value.trim();
+        // Generate documentation
+        async function generateDocumentation() {
+            const description = document.getElementById('descriptionInput').value.trim();
 
             if (!description) {
-                showError('Please enter a project description');
+                alert('Please enter a project description');
                 return;
             }
 
-            // Show loading state
+            projectDescription = description;
+            const generateBtn = document.getElementById('generateBtn');
             generateBtn.disabled = true;
-            btnText.textContent = '⏳ Generating...';
-            showLoading();
+            generateBtn.innerHTML = '⏳ Generating...';
+
+            // Show screen 2 with loading
+            goToScreen(2);
+            document.getElementById('epicsContainer').innerHTML = `
+                <div class="loading">
+                    <div class="spinner"></div>
+                    <p>AI is generating comprehensive documentation with 5 epics...</p>
+                    <p style="font-size: 0.9rem; margin-top: 10px; opacity: 0.7;">This may take 30-60 seconds</p>
+                </div>
+            `;
 
             try {
                 const response = await fetch('/api/generate', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ description })
                 });
 
                 const data = await response.json();
 
                 if (data.success) {
-                    displayResults(data.result, description, data.generator_used);
+                    allEpics = data.result.epics.map(epic => ({
+                        ...epic,
+                        approved: false,
+                        expanded: false
+                    }));
+                    generatorUsed = data.generator_used || 'AI Generator';
+                    displayEpicsForReview();
                 } else {
                     showError(data.error || 'Generation failed');
                 }
@@ -409,190 +596,234 @@
                 showError('Network error: ' + error.message);
             } finally {
                 generateBtn.disabled = false;
-                btnText.textContent = '✨ Generate Comprehensive Documentation';
+                generateBtn.innerHTML = '✨ Generate Epics';
             }
         }
 
-        // Display results - handles both single epic and multiple epics format
-        function displayResults(result, description, generatorUsed = '') {
-            const generatorBadge = generatorUsed ? `
-                <div class="result-card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none;">
-                    <div class="result-title" style="color: white;">🤖 AI Generator Used</div>
-                    <div class="result-content" style="color: white; font-weight: 600;">
-                        ${escapeHtml(generatorUsed)}
-                    </div>
-                </div>
-            ` : '';
+        // Display epics for review
+        function displayEpicsForReview() {
+            const container = document.getElementById('epicsContainer');
 
-            let epicsHtml = '';
-
-            // Check if this is multi-epic format (Claude API)
-            if (result.epics && result.epics.length > 0) {
-                // Multi-epic format
-                epicsHtml = result.epics.map(epic => {
-                    const userStoriesHtml = epic.user_stories.map(story => {
-                        const testCasesHtml = story.test_cases && story.test_cases.length > 0 ? story.test_cases.map(tc => `
-                            <div style="margin-top: 15px; padding: 15px; background: #f0f0f0; border-radius: 8px;">
-                                <div style="font-weight: 600; margin-bottom: 8px;">
-                                    🧪 Test Case <span class="badge">${escapeHtml(tc.test_case_id)}</span>
-                                </div>
-                                <div><strong>Description:</strong> ${escapeHtml(tc.test_case_description)}</div>
-                                ${tc.expected_results && tc.expected_results.length > 0 ? `
-                                    <div style="margin-top: 10px;"><strong>Expected Results:</strong></div>
-                                    <ul class="result-list">
-                                        ${tc.expected_results.map((item, idx) => `<li><strong>${idx + 1}.</strong> ${escapeHtml(item)}</li>`).join('')}
-                                    </ul>
-                                ` : ''}
+            const html = allEpics.map((epic, index) => {
+                const userStoriesHtml = epic.user_stories.map(story => {
+                    const testCasesHtml = story.test_cases?.map(tc => `
+                        <div class="test-case">
+                            <div class="test-case-title">
+                                🧪 Test Case <span class="badge">${escapeHtml(tc.test_case_id)}</span>
                             </div>
-                        `).join('') : '';
-
-                        return `
-                            <div class="result-card" style="margin-left: 20px; border-left: 3px solid #667eea;">
-                                <div class="result-title">
-                                    👤 User Story <span class="badge">${escapeHtml(story.story_id)}</span>
-                                    ${story.story_points ? `<span class="badge" style="background: #28a745;">${escapeHtml(story.story_points)} pts</span>` : ''}
-                                </div>
-                                <div class="result-content">
-                                    ${story.story_title ? `<strong>${escapeHtml(story.story_title)}</strong><br><br>` : ''}
-                                    ${story.story_description ? `<div>${escapeHtml(story.story_description)}</div>` : ''}
-                                    ${story.acceptance_criteria ? `
-                                        <div style="margin-top: 10px; padding: 10px; background: #f8f9fa; border-radius: 5px;">
-                                            <strong>✅ Acceptance Criteria:</strong><br>
-                                            ${escapeHtml(story.acceptance_criteria)}
-                                        </div>
-                                    ` : ''}
-                                    ${testCasesHtml}
-                                </div>
-                            </div>
-                        `;
-                    }).join('');
+                            <div><strong>Description:</strong> ${escapeHtml(tc.test_case_description)}</div>
+                            ${tc.expected_results?.length > 0 ? `
+                                <div style="margin-top: 10px;"><strong>Expected Results:</strong></div>
+                                <ul style="margin-left: 20px; margin-top: 5px;">
+                                    ${tc.expected_results.map(result => `<li>${escapeHtml(result)}</li>`).join('')}
+                                </ul>
+                            ` : ''}
+                        </div>
+                    `).join('') || '';
 
                     return `
-                        <div class="result-card" style="background: linear-gradient(to right, #f8f9fa, #ffffff); border-left: 5px solid #667eea;">
-                            <div class="result-title" style="font-size: 1.3rem;">
-                                🎯 Epic <span class="badge" style="font-size: 1rem;">${escapeHtml(epic.epic_id)}</span>
+                        <div class="user-story">
+                            <div class="story-header">
+                                👤 User Story <span class="badge">${escapeHtml(story.story_id)}</span>
+                                ${story.story_points ? `<span class="badge badge-warning">${escapeHtml(story.story_points)} pts</span>` : ''}
                             </div>
-                            <div class="result-content">
-                                ${epic.epic_title ? `<h3 style="margin: 0 0 10px 0; color: #667eea;">${escapeHtml(epic.epic_title)}</h3>` : ''}
-                                ${epic.epic_description ? `<div style="margin-bottom: 20px;">${escapeHtml(epic.epic_description)}</div>` : ''}
-                            </div>
+                            <div><strong>${escapeHtml(story.story_title)}</strong></div>
+                            <div style="margin-top: 10px;">${escapeHtml(story.story_description)}</div>
+                            ${story.acceptance_criteria ? `
+                                <div style="margin-top: 15px; padding: 12px; background: #e9ecef; border-radius: 6px;">
+                                    <strong>✅ Acceptance Criteria:</strong><br>
+                                    ${escapeHtml(story.acceptance_criteria)}
+                                </div>
+                            ` : ''}
+                            ${testCasesHtml}
                         </div>
-                        ${userStoriesHtml}
                     `;
                 }).join('');
-            } else {
-                // Single epic format (T5 model) - use old display logic
-                epicsHtml = `
-                    ${result.epic_id || result.epic_title ? `
-                    <div class="result-card">
-                        <div class="result-title">
-                            🎯 Epic ${result.epic_id ? `<span class="badge">${escapeHtml(result.epic_id)}</span>` : ''}
-                        </div>
-                        <div class="result-content">
-                            ${result.epic_title ? `<strong>${escapeHtml(result.epic_title)}</strong><br><br>` : ''}
-                            ${result.epic_description ? escapeHtml(result.epic_description) : ''}
-                        </div>
-                    </div>
-                    ` : ''}
 
-                    ${result.story_id || result.story_title ? `
-                    <div class="result-card">
-                        <div class="result-title">
-                            👤 User Story ${result.story_id ? `<span class="badge">${escapeHtml(result.story_id)}</span>` : ''}
+                return `
+                    <div class="epic-container ${epic.expanded ? 'expanded' : ''} ${epic.approved ? 'approved' : ''}" id="epic-${index}">
+                        <div class="epic-header" onclick="toggleEpic(${index})">
+                            <div class="epic-title">
+                                🎯 Epic <span class="badge">${escapeHtml(epic.epic_id)}</span>
+                                ${epic.approved ? '<span class="badge badge-success">✓ Approved</span>' : ''}
+                                <div style="font-size: 0.9rem; font-weight: 400; margin-top: 5px;">${escapeHtml(epic.epic_title)}</div>
+                            </div>
+                            <div class="epic-toggle">▼</div>
                         </div>
-                        <div class="result-content">
-                            ${result.story_title ? `<strong>${escapeHtml(result.story_title)}</strong><br><br>` : ''}
-                            ${result.story_description ? escapeHtml(result.story_description) : ''}
-                            ${result.story_points ? `<br><br>📊 <strong>Story Points:</strong> <span class="badge">${escapeHtml(result.story_points)}</span>` : ''}
-                        </div>
-                    </div>
-                    ` : ''}
-
-                    ${result.acceptance_criteria ? `
-                    <div class="result-card">
-                        <div class="result-title">✅ Acceptance Criteria</div>
-                        <div class="result-content">${escapeHtml(result.acceptance_criteria)}</div>
-                    </div>
-                    ` : ''}
-
-                    ${result.test_case_id || result.test_case_description ? `
-                    <div class="result-card">
-                        <div class="result-title">
-                            🧪 Test Case ${result.test_case_id ? `<span class="badge">${escapeHtml(result.test_case_id)}</span>` : ''}
-                        </div>
-                        <div class="result-content">
-                            ${result.test_case_description ? `<strong>Description:</strong> ${escapeHtml(result.test_case_description)}` : ''}
-                        </div>
-                    </div>
-                    ` : ''}
-
-                    ${result.expected_results && result.expected_results.length > 0 ? `
-                    <div class="result-card">
-                        <div class="result-title">🎯 Expected Results</div>
-                        <div class="result-content">
-                            <ul class="result-list">
-                                ${result.expected_results.map((item, idx) => `<li><strong>${idx + 1}.</strong> ${escapeHtml(item)}</li>`).join('')}
-                            </ul>
+                        <div class="epic-content">
+                            <div class="epic-body">
+                                <div class="epic-description">
+                                    <strong>Description:</strong><br>
+                                    ${escapeHtml(epic.epic_description)}
+                                </div>
+                                ${userStoriesHtml}
+                                <div class="epic-actions">
+                                    <button class="btn btn-success" onclick="approveEpic(${index})" ${epic.approved ? 'disabled' : ''}>
+                                        ${epic.approved ? '✓ Approved' : '✓ Approve Epic'}
+                                    </button>
+                                    <button class="btn btn-warning" onclick="regenerateEpic(${index})">
+                                        🔄 Regenerate
+                                    </button>
+                                    <button class="btn btn-danger" onclick="cancelEpic(${index})">
+                                        ✕ Cancel
+                                    </button>
+                                </div>
+                            </div>
                         </div>
                     </div>
-                    ` : ''}
                 `;
-            }
+            }).join('');
 
-            const html = `
-                ${generatorBadge}
-
-                <div class="result-card">
-                    <div class="result-title">📝 Your Input</div>
-                    <div class="result-content">${escapeHtml(description)}</div>
-                </div>
-
-                ${epicsHtml}
-
-                ${result.raw_text ? `
-                <div class="result-card">
-                    <div class="result-title">📄 Complete Output</div>
-                    <div class="result-content" style="white-space: pre-wrap; font-family: monospace; font-size: 0.9em; background: #f5f5f5; padding: 15px; border-radius: 8px; overflow-x: auto;">${escapeHtml(result.raw_text)}</div>
-                </div>
-                ` : ''}
-            `;
-
-            resultsSection.innerHTML = html;
-            resultsSection.classList.add('show');
-            resultsSection.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            container.innerHTML = html;
+            updateApprovedButton();
         }
 
-        // Show loading state
-        function showLoading() {
-            resultsSection.innerHTML = `
+        // Toggle epic expansion
+        function toggleEpic(index) {
+            allEpics[index].expanded = !allEpics[index].expanded;
+            displayEpicsForReview();
+        }
+
+        // Approve epic
+        function approveEpic(index) {
+            allEpics[index].approved = true;
+            displayEpicsForReview();
+        }
+
+        // Regenerate epic
+        async function regenerateEpic(index) {
+            if (!confirm('Regenerate this epic? This will create a new version.')) return;
+
+            const epicContainer = document.getElementById(`epic-${index}`);
+            epicContainer.querySelector('.epic-body').innerHTML = `
                 <div class="loading">
                     <div class="spinner"></div>
-                    <p>AI is generating comprehensive documentation with epics, stories, and test cases...</p>
+                    <p>Regenerating epic...</p>
                 </div>
             `;
-            resultsSection.classList.add('show');
+
+            // TODO: Implement epic regeneration API call
+            alert('Epic regeneration feature coming soon!');
+            displayEpicsForReview();
         }
 
-        // Show error
+        // Cancel epic
+        function cancelEpic(index) {
+            if (!confirm('Remove this epic from the project?')) return;
+            allEpics.splice(index, 1);
+            displayEpicsForReview();
+        }
+
+        // Update approved button
+        function updateApprovedButton() {
+            const approvedCount = allEpics.filter(e => e.approved).length;
+            const btn = document.getElementById('viewApprovedBtn');
+            btn.innerHTML = `View Approved Epics (${approvedCount}) →`;
+            btn.disabled = approvedCount === 0;
+        }
+
+        // Update approved screen
+        function updateApprovedScreen() {
+            const approvedEpics = allEpics.filter(e => e.approved);
+            const count = approvedEpics.length;
+
+            document.getElementById('approvedCount').textContent = `${count} epic${count !== 1 ? 's' : ''} approved`;
+
+            // Display approved epics
+            const approvedHtml = approvedEpics.map(epic => {
+                const userStoriesHtml = epic.user_stories.map(story => `
+                    <div class="user-story">
+                        <div class="story-header">
+                            👤 User Story <span class="badge">${escapeHtml(story.story_id)}</span>
+                        </div>
+                        <div><strong>${escapeHtml(story.story_title)}</strong></div>
+                        <div style="margin-top: 10px;">${escapeHtml(story.story_description)}</div>
+                    </div>
+                `).join('');
+
+                return `
+                    <div class="epic-container approved" style="margin-bottom: 20px;">
+                        <div class="epic-header">
+                            <div class="epic-title">
+                                🎯 Epic <span class="badge">${escapeHtml(epic.epic_id)}</span>
+                                - ${escapeHtml(epic.epic_title)}
+                            </div>
+                        </div>
+                        <div class="epic-content" style="max-height: none;">
+                            <div class="epic-body">
+                                <div class="epic-description">
+                                    ${escapeHtml(epic.epic_description)}
+                                </div>
+                                ${userStoriesHtml}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            document.getElementById('approvedEpicsContainer').innerHTML = approvedHtml;
+
+            // Generate complete output
+            let completeOutput = `PROJECT: ${projectDescription}\n\nGENERATOR: ${generatorUsed}\n\n`;
+            completeOutput += '='.repeat(80) + '\n\n';
+
+            approvedEpics.forEach(epic => {
+                completeOutput += `Epic ${epic.epic_id}: ${epic.epic_title}\n`;
+                completeOutput += `Description: ${epic.epic_description}\n\n`;
+
+                epic.user_stories.forEach(story => {
+                    completeOutput += `User Story ${story.story_id}: ${story.story_title}\n`;
+                    completeOutput += `Description: ${story.story_description}\n`;
+                    if (story.story_points) {
+                        completeOutput += `Story Points: ${story.story_points}\n`;
+                    }
+                    if (story.acceptance_criteria) {
+                        completeOutput += `Acceptance Criteria: ${story.acceptance_criteria}\n`;
+                    }
+                    completeOutput += '\n';
+
+                    story.test_cases?.forEach(tc => {
+                        completeOutput += `Test Case ID: ${tc.test_case_id}\n`;
+                        completeOutput += `Test Case Description: ${tc.test_case_description}\n`;
+                        if (tc.expected_results?.length > 0) {
+                            completeOutput += 'Expected Results:\n';
+                            tc.expected_results.forEach((result, idx) => {
+                                completeOutput += `${idx + 1}. ${result}\n`;
+                            });
+                        }
+                        completeOutput += '\n';
+                    });
+                });
+
+                completeOutput += '='.repeat(80) + '\n\n';
+            });
+
+            document.getElementById('completeOutput').textContent = completeOutput;
+        }
+
+        // Utility functions
+        function clearInput() {
+            document.getElementById('descriptionInput').value = '';
+        }
+
+        function startNew() {
+            if (!confirm('Start a new project? This will clear all current data.')) return;
+            allEpics = [];
+            projectDescription = '';
+            clearInput();
+            goToScreen(1);
+        }
+
         function showError(message) {
-            resultsSection.innerHTML = `
+            document.getElementById('epicsContainer').innerHTML = `
                 <div class="error-message">
                     <strong>Error:</strong> ${escapeHtml(message)}
                 </div>
             `;
-            resultsSection.classList.add('show');
         }
 
-        // Clear all
-        function clearAll() {
-            descriptionInput.value = '';
-            resultsSection.innerHTML = '';
-            resultsSection.classList.remove('show');
-            descriptionInput.focus();
-        }
-
-        // Escape HTML to prevent XSS
         function escapeHtml(text) {
+            if (!text) return '';
             const div = document.createElement('div');
             div.textContent = text;
             return div.innerHTML;

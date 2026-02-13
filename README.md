@@ -7,8 +7,9 @@ An intelligent system that automatically generates comprehensive project documen
 - **Multi-Epic Generation**: Analyzes project descriptions and breaks them into 5 distinct major feature areas (Epics)
 - **Comprehensive Documentation**: Each Epic contains detailed User Stories with Story Points, Acceptance Criteria, and Test Cases
 - **Dual AI System**:
-  - Primary: Claude API (Sonnet 4) for high-quality, specific generation
+  - Primary: Google Gemini API (2.5 Flash) for high-quality, specific generation
   - Fallback: Fine-tuned T5 Model for offline capability
+- **Continuous Learning**: Automatically collects Gemini outputs to retrain T5 model for improved performance
 - **Web Interface**: Beautiful, responsive web UI for easy interaction
 - **Hierarchical Display**: Visual organization showing Epic → User Stories → Test Cases relationship
 
@@ -32,22 +33,22 @@ cd epic-generator
 pip install -r requirements.txt
 ```
 
-3. Configure Anthropic API Key:
+3. Configure Google Gemini API Key:
    - Copy `.env.example` to `.env`
-   - Get your API key from [Anthropic Console](https://console.anthropic.com/)
+   - Get your API key from [Google AI Studio](https://makersuite.google.com/app/apikey)
    - Add your key to `.env`:
    ```
-   ANTHROPIC_API_KEY=your-actual-api-key-here
+   GEMINI_API_KEY=your-actual-api-key-here
    ```
 
 4. Set environment variable (Windows):
 ```bash
-set ANTHROPIC_API_KEY=your-actual-api-key-here
+set GEMINI_API_KEY=your-actual-api-key-here
 ```
 
 Or (Linux/Mac):
 ```bash
-export ANTHROPIC_API_KEY=your-actual-api-key-here
+export GEMINI_API_KEY=your-actual-api-key-here
 ```
 
 ### Running the Web Application
@@ -94,33 +95,48 @@ Each User Story includes:
 
 - **Backend**: Flask (Python)
 - **AI Models**:
-  - Claude API (Anthropic Sonnet 4)
-  - T5-Small (Fine-tuned on 5000+ examples)
+  - Google Gemini API (2.5 Flash) - Primary
+  - T5-Small (Fine-tuned on 5000+ examples) - Fallback
+- **Continuous Learning**: Automatic data collection and model retraining
 - **Frontend**: HTML/CSS/JavaScript
 - **Training**: PyTorch, Transformers
 
 ## Model Information
 
-- **Primary Model**: Claude Sonnet 4 via Anthropic API
+- **Primary Model**: Google Gemini 2.5 Flash via Google AI API
 - **Fallback Model**: T5-Small Comprehensive (60.5M parameters)
-- **Training Data**: 5000+ project requirement examples
+- **Training Data**: 5000+ project requirement examples + Continuous learning from Gemini outputs
 - **Format**: Based on Autonomous Solar Vehicle project documentation
+
+## Continuous Learning System
+
+The system automatically collects every Gemini API output as training data for the T5 model:
+- **Automatic Collection**: Each successful generation is saved
+- **Data Storage**: `training_data/gemini_training_examples.jsonl`
+- **Retraining**: Run `python retrain_t5.py` after collecting 10+ examples
+- **Benefits**: T5 model continuously improves and learns from high-quality Gemini outputs
+
+See [TRAINING_GUIDE.md](TRAINING_GUIDE.md) for detailed instructions on retraining the T5 model.
 
 ## Project Structure
 
 ```
 epic-generator/
-├── web_app.py              # Flask web server
+├── web_app.py                    # Flask web server
 ├── src/
-│   ├── inference.py        # T5 model inference
-│   ├── enhanced_generator.py  # Claude API integration
-│   ├── train_model.py      # Model training scripts
+│   ├── inference.py              # T5 model inference
+│   ├── gemini_generator.py       # Gemini API integration
+│   ├── data_collector.py         # Training data collection
+│   ├── train_model.py            # Model training scripts
 │   └── comprehensive_preprocessor.py
 ├── templates/
-│   └── index.html          # Web UI
-├── models/                 # Trained models (not in repo)
-├── requirements.txt        # Python dependencies
-└── README.md              # This file
+│   └── index.html                # Web UI
+├── training_data/                # Collected Gemini outputs (auto-generated)
+├── models/                       # Trained models (not in repo)
+├── retrain_t5.py                 # T5 retraining utility
+├── requirements.txt              # Python dependencies
+├── TRAINING_GUIDE.md             # Guide for model retraining
+└── README.md                     # This file
 ```
 
 ## API Endpoints

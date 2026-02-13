@@ -41,6 +41,7 @@ models/
 data/
 csv/
 output/
+training_data/
 
 # Executables
 *.exe

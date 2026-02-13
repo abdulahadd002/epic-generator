@@ -6,43 +6,60 @@ Run this to start a web interface for your AI model
 from flask import Flask, render_template, request, jsonify
 from flask_cors import CORS
 from src.inference import EpicStoryGenerator
-from src.enhanced_generator import EnhancedEpicGenerator
+from src.gemini_generator import GeminiEpicGenerator
+from src.data_collector import TrainingDataCollector
 import os
+import sys
 
 app = Flask(__name__)
 CORS(app)  # Enable CORS for API calls
 
-# Configuration - Anthropic API Key
-# Set your API key as environment variable: ANTHROPIC_API_KEY
-ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
+# Configuration - Google Gemini API Key
+# Set your API key as environment variable: GEMINI_API_KEY
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
+
+# Debug: Check if API key is loaded
+if GEMINI_API_KEY:
+    print(f"[DEBUG] API Key loaded: {GEMINI_API_KEY[:25]}...")
+    sys.stdout.flush()
+else:
+    print("[WARNING] No GEMINI_API_KEY found in environment!")
+    sys.stdout.flush()
 
 # Global model instances (load once when server starts)
 print("="*80)
 print("INITIALIZING AI GENERATORS")
 print("="*80)
 
-# Initialize Claude API generator (primary)
-print("\n[1/2] Initializing Claude API Generator...")
+# Initialize Gemini API generator (primary)
+print("\n[1/2] Initializing Google Gemini API Generator...")
 try:
-    claude_generator = EnhancedEpicGenerator(api_key=ANTHROPIC_API_KEY)
-    print("[SUCCESS] Claude API Generator ready!")
+    gemini_generator = GeminiEpicGenerator(api_key=GEMINI_API_KEY)
+    print("[SUCCESS] Gemini API Generator ready!")
 except Exception as e:
-    print(f"[ERROR] Claude API initialization failed: {e}")
-    claude_generator = None
+    print(f"[ERROR] Gemini API initialization failed: {e}")
+    gemini_generator = None
 
-# Initialize T5 model (fallback)
-print("\n[2/2] Loading T5 Comprehensive Model (fallback)...")
+# Initialize T5 model (DISABLED for testing Gemini API only)
+print("\n[2/2] T5 Model (DISABLED - Testing Gemini API only)...")
+t5_generator = None
+print("[INFO] T5 Model disabled - Gemini API exclusive mode")
+
+# Initialize Training Data Collector
+print("\n[3/3] Initializing Training Data Collector...")
 try:
-    t5_generator = EpicStoryGenerator(model_path="d:/epic model/models/comprehensive-model/final")
-    print("[SUCCESS] T5 Model loaded!")
+    data_collector = TrainingDataCollector()
+    stats = data_collector.get_stats()
+    print(f"[SUCCESS] Data Collector ready! ({stats['total_examples']} examples collected)")
 except Exception as e:
-    print(f"[ERROR] T5 Model initialization failed: {e}")
-    t5_generator = None
+    print(f"[ERROR] Data Collector initialization failed: {e}")
+    data_collector = None
 
 print("\n" + "="*80)
 print("GENERATOR STATUS:")
-print(f"  Claude API (Primary):  {'[READY]' if claude_generator else '[UNAVAILABLE]'}")
-print(f"  T5 Model (Fallback):   {'[READY]' if t5_generator else '[UNAVAILABLE]'}")
+print(f"  Gemini API (Primary):  {'[READY]' if gemini_generator else '[UNAVAILABLE]'}")
+print(f"  T5 Model (Fallback):   [DISABLED for testing]")
+print(f"  Data Collector:        {'[READY]' if data_collector else '[UNAVAILABLE]'}")
 print("="*80)
 print("\nWeb server starting...")
 
@@ -326,50 +343,55 @@ def generate():
         generator_used = None
         formatted_output = None
 
-        # Try Claude API first (unless T5 is explicitly requested)
-        if not force_t5 and claude_generator:
+        # Try Gemini API first (unless T5 is explicitly requested)
+        if not force_t5 and gemini_generator:
             try:
-                print(f"\n[API] Using Claude API for generation...")
-                # Generate using Claude API with quick summary (1 epic, 3 stories)
-                result = claude_generator.generate_quick_summary(description)
+                print(f"\n[API] Using Gemini API for generation...")
+                sys.stdout.flush()
+                # Generate using Gemini API with quick summary (5 epics, 2 stories each)
+                result = gemini_generator.generate_quick_summary(description)
 
                 if result.get("success"):
                     formatted_output = result["raw_output"]
-                    generator_used = "Claude API"
-                    print(f"[API] [SUCCESS] Claude API generation successful")
+                    generator_used = "Gemini API"
+                    print(f"[API] [SUCCESS] Gemini API generation successful")
+                    sys.stdout.flush()
+
+                    # Save training data for T5 model learning
+                    if data_collector:
+                        data_collector.save_training_example(
+                            project_description=description,
+                            generated_output=formatted_output,
+                            generator_used="Gemini API"
+                        )
+                        sys.stdout.flush()
                 else:
-                    print(f"[API] [ERROR] Claude API generation failed: {result.get('error')}")
+                    print(f"[API] [ERROR] Gemini API generation failed: {result.get('error')}")
+                    sys.stdout.flush()
                     # Fall back to T5
-                    raise Exception("Claude API generation failed")
+                    raise Exception("Gemini API generation failed")
 
             except Exception as e:
-                print(f"[API] Claude API error: {e}, falling back to T5 model...")
+                print(f"[API] Gemini API error: {e}, falling back to T5 model...")
+                sys.stdout.flush()
                 formatted_output = None
 
-        # Fall back to T5 model if Claude fails or is unavailable
-        if formatted_output is None and t5_generator:
-            print(f"\n[API] Using T5 Model for generation...")
-            input_text = f"generate comprehensive project documentation: {description}"
-            raw_model_output = t5_generator.generate(
-                input_text,
-                max_length=512,
-                num_beams=5
-            )
-            # Reformat the output to match PDF structure
-            formatted_output = reformat_model_output(raw_model_output, description)
-            generator_used = "T5 Model"
-            print(f"[API] [SUCCESS] T5 Model generation successful")
+        # T5 model disabled for testing - Gemini API only
+        # Fall back disabled to test Gemini API exclusively
 
-        # If both generators failed
+        # If Gemini API failed
         if formatted_output is None:
+            error_msg = 'Gemini API generation failed. T5 model is disabled for testing. Check server logs.'
+            print(f"[ERROR] {error_msg}")
+            sys.stdout.flush()
             return jsonify({
                 'success': False,
-                'error': 'No AI generators available. Please check configuration.'
+                'error': error_msg
             }), 500
 
         # Parse comprehensive output
-        # Use multi-epic parser for Claude API (better format), single-epic for T5
-        if generator_used == "Claude API":
+        # Use multi-epic parser for Gemini API (better format), single-epic for T5
+        if generator_used == "Gemini API":
             result = parse_multiple_epics(formatted_output)
         else:
             # T5 model - use old single-epic parser for compatibility
@@ -415,14 +437,16 @@ def get_examples():
 @app.route('/api/health', methods=['GET'])
 def health():
     """Health check endpoint"""
+    collector_stats = data_collector.get_stats() if data_collector else {}
+
     return jsonify({
         'success': True,
         'status': 'running',
         'generators': {
-            'claude_api': {
-                'available': claude_generator is not None,
-                'model': 'Claude Sonnet 4',
-                'status': 'Primary Generator' if claude_generator else 'Unavailable'
+            'gemini_api': {
+                'available': gemini_generator is not None,
+                'model': 'Gemini 2.5 Flash',
+                'status': 'Primary Generator' if gemini_generator else 'Unavailable'
             },
             't5_model': {
                 'available': t5_generator is not None,
@@ -430,9 +454,15 @@ def health():
                 'parameters': '60.5M',
                 'status': 'Fallback Generator' if t5_generator else 'Unavailable',
                 'model_path': 'd:/epic model/models/comprehensive-model/final'
+            },
+            'data_collector': {
+                'available': data_collector is not None,
+                'status': 'Active - Collecting Training Data' if data_collector else 'Unavailable',
+                'total_examples': collector_stats.get('total_examples', 0),
+                'last_updated': collector_stats.get('last_updated')
             }
         },
-        'primary_generator': 'Claude API' if claude_generator else ('T5 Model' if t5_generator else 'None')
+        'primary_generator': 'Gemini API' if gemini_generator else ('T5 Model' if t5_generator else 'None')
     })
 
 

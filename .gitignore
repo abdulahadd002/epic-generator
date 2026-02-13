@@ -1,6 +1,11 @@
 # Claude Code directory
 .claude/
 
+# Environment variables and secrets
+.env
+*.env
+!.env.example
+
 # Python
 __pycache__/
 *.py[cod]

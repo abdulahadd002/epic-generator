@@ -93,68 +93,63 @@ class EnhancedEpicGenerator:
         num_stories_per_epic: int,
         include_test_cases: bool
     ) -> str:
-        """Build the prompt for Claude API"""
+        """Build the prompt for Claude API - generates specific, detailed documentation"""
 
-        test_case_instruction = ""
-        if include_test_cases:
-            test_case_instruction = """
-### TEST CASES (for each user story):
-For each user story, create 1-2 detailed test cases in this format:
+        prompt = f"""You are a senior software architect creating comprehensive, SPECIFIC project documentation.
 
-**Test Case ID:** [Epic-US-TC format, e.g., E1-US1-TC1]
-**Test Case Description:** [What functionality is being tested]
-**Input:**
-- Preconditions: [System state requirements]
-- Vehicle/System State: [Current state]
-- Test Scenario: [Specific test setup]
+CRITICAL INSTRUCTIONS:
+- Read the ENTIRE project description carefully and ANALYZE all features mentioned
+- BREAK DOWN the project into {num_epics} DISTINCT major feature areas (Epics)
+- Each Epic must represent a DIFFERENT major system capability
+- Generate SPECIFIC, DETAILED content based on the ACTUAL requirements provided
+- DO NOT use generic placeholders or vague descriptions
+- Every Epic, User Story, and Test Case must be directly relevant to the project description
+- Use actual feature names, specific metrics, and concrete acceptance criteria from the description
 
-**Expected Result:**
-1. [First expected outcome - be specific]
-2. [Second expected outcome - include metrics]
-3. [Third expected outcome - include timings if relevant]
-4. [Fourth expected outcome - include UI/UX details]
-5. [Fifth expected outcome - include error handling]
-6. [Sixth expected outcome - include completion state]
-"""
+ANALYSIS INSTRUCTIONS:
+1. Identify {num_epics} major feature categories from the project description
+2. Each Epic should cover a distinct functional area (e.g., Authentication, Dashboard, Data Entry, Analytics, etc.)
+3. Number Epics sequentially: E1, E2, E3, E4, E5...
+4. User Stories should be numbered per Epic: E1-US1, E1-US2, E2-US1, E2-US2, etc.
+5. Test Cases should follow User Story IDs: E1-US1-TC1, E1-US2-TC1, E2-US1-TC1, etc.
 
-        prompt = f"""You are a senior software architect creating comprehensive project documentation.
+PROJECT DESCRIPTION:
+{description}
 
-Given this project description:
-"{description}"
+Generate {num_epics} comprehensive EPICs (E1 through E{num_epics}), each representing a DIFFERENT major feature area.
+Each Epic must have {num_stories_per_epic} detailed USER STORIES.
+Output must follow this EXACT format (plain text, not markdown):
 
-Generate {num_epics} EPICS, each with {num_stories_per_epic} USER STORIES, following this EXACT format:
+Epic E[number]: [Specific Title Based on Project Description]
+Description: As a [specific stakeholder role from project], I want [specific high-level capability mentioned in project] so that [actual business value from requirements]
 
-### EPIC FORMAT:
-**Epic ID:** E[number]
-**Epic Title:** [Descriptive title]
-**Description:** As a [stakeholder role], I want [high-level capability] so that [business value/benefit].
+User Story E[epic#]-US[story#]: [Specific Feature Title from Project]
+Description: As a [specific user role from project], I want [exact feature from project description] so that [actual user benefit from requirements]
+Story Points: [Appropriate number based on complexity: 1-13]
+Acceptance Criteria: Given [specific initial context from project], When [specific action from requirements], Then [specific expected behavior with metrics from project]
 
-### USER STORY FORMAT (for each epic):
-**User Story ID:** E[epic#]-US[story#]
-**User Story Title:** [Descriptive title]
-**Description:** As a [user role], I want [specific feature] so that [user benefit].
-**Acceptance Criteria:**
-- Given [initial context/precondition]
-- When [action or event occurs]
-- Then [expected system behavior/outcome]
+Test Case ID: E[epic#]-US[story#]-TC1
+Test Case Description: Verify that [specific functionality from project description] works as specified
+Input:
+  - Preconditions: [Specific system requirements from project description]
+  - Test Data: [Actual data examples relevant to the feature]
+  - User Action: [Specific action from project requirements]
+Expected Result:
+1. [Specific outcome with actual metrics from project - e.g., "User registration completes within 2 seconds"]
+2. [Specific validation based on project - e.g., "Dashboard displays user's daily calorie intake of 2000 calories"]
+3. [Specific UI behavior from requirements - e.g., "Success notification appears with message: 'Workout logged successfully'"]
+4. [Specific data persistence requirement - e.g., "Workout entry saved to database with timestamp, duration, and calories burned"]
+5. [Specific error handling from project - e.g., "If network fails, display: 'Unable to sync. Data saved locally'"]
+6. [Specific completion state - e.g., "User redirected to dashboard showing updated statistics"]
 
-{test_case_instruction}
+EXAMPLE OF GOOD (SPECIFIC) vs BAD (GENERIC):
+BAD: "System accepts input and validates format within 500ms"
+GOOD: "Fitness app accepts workout log entry (exercise type, duration, calories) and validates all fields are filled within 300ms"
 
-IMPORTANT GUIDELINES:
-1. Make epics represent major system capabilities
-2. User stories should be specific, measurable, and testable
-3. Acceptance criteria must use Given/When/Then format
-4. Test cases should include specific metrics, timings, and measurable outcomes
-5. Cover different stakeholder perspectives (end users, operators, admins, safety officers)
-6. Include both positive and negative test scenarios
-7. Be detailed and comprehensive like professional software requirements
+BAD: "As a user, I want to log data"
+GOOD: "As a fitness app user, I want to log my cardio workout (running, duration: 30 minutes, calories: 350) so that I can track my daily calorie burn progress"
 
-OUTPUT FORMAT:
-Organize your response with clear markdown headings for each epic, user story, and test case.
-Use bold text for labels (Epic ID, Description, etc.).
-Number all lists clearly.
-
-Begin your response now:"""
+Now generate the documentation using ONLY specific details from the project description above:"""
 
         return prompt
 
@@ -177,18 +172,19 @@ Begin your response now:"""
 
     def generate_quick_summary(self, project_description: str) -> Dict:
         """
-        Generate a quick 1-epic, 3-story summary
+        Generate comprehensive documentation with multiple epics
+        Analyzes the description and breaks it into multiple major feature areas
 
         Args:
             project_description: Project description
 
         Returns:
-            Simplified documentation
+            Comprehensive documentation with multiple epics
         """
         return self.generate_comprehensive_documentation(
             project_description,
-            num_epics=1,
-            num_stories_per_epic=3,
+            num_epics=5,  # Generate 5 major epics to cover different feature areas
+            num_stories_per_epic=2,  # 2 user stories per epic for detailed coverage
             include_test_cases=True
         )
 

@@ -401,7 +401,7 @@
                 const data = await response.json();
 
                 if (data.success) {
-                    displayResults(data.result, description);
+                    displayResults(data.result, description, data.generator_used);
                 } else {
                     showError(data.error || 'Generation failed');
                 }
@@ -413,67 +413,141 @@
             }
         }
 
-        // Display results
-        function displayResults(result, description) {
+        // Display results - handles both single epic and multiple epics format
+        function displayResults(result, description, generatorUsed = '') {
+            const generatorBadge = generatorUsed ? `
+                <div class="result-card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none;">
+                    <div class="result-title" style="color: white;">🤖 AI Generator Used</div>
+                    <div class="result-content" style="color: white; font-weight: 600;">
+                        ${escapeHtml(generatorUsed)}
+                    </div>
+                </div>
+            ` : '';
+
+            let epicsHtml = '';
+
+            // Check if this is multi-epic format (Claude API)
+            if (result.epics && result.epics.length > 0) {
+                // Multi-epic format
+                epicsHtml = result.epics.map(epic => {
+                    const userStoriesHtml = epic.user_stories.map(story => {
+                        const testCasesHtml = story.test_cases && story.test_cases.length > 0 ? story.test_cases.map(tc => `
+                            <div style="margin-top: 15px; padding: 15px; background: #f0f0f0; border-radius: 8px;">
+                                <div style="font-weight: 600; margin-bottom: 8px;">
+                                    🧪 Test Case <span class="badge">${escapeHtml(tc.test_case_id)}</span>
+                                </div>
+                                <div><strong>Description:</strong> ${escapeHtml(tc.test_case_description)}</div>
+                                ${tc.expected_results && tc.expected_results.length > 0 ? `
+                                    <div style="margin-top: 10px;"><strong>Expected Results:</strong></div>
+                                    <ul class="result-list">
+                                        ${tc.expected_results.map((item, idx) => `<li><strong>${idx + 1}.</strong> ${escapeHtml(item)}</li>`).join('')}
+                                    </ul>
+                                ` : ''}
+                            </div>
+                        `).join('') : '';
+
+                        return `
+                            <div class="result-card" style="margin-left: 20px; border-left: 3px solid #667eea;">
+                                <div class="result-title">
+                                    👤 User Story <span class="badge">${escapeHtml(story.story_id)}</span>
+                                    ${story.story_points ? `<span class="badge" style="background: #28a745;">${escapeHtml(story.story_points)} pts</span>` : ''}
+                                </div>
+                                <div class="result-content">
+                                    ${story.story_title ? `<strong>${escapeHtml(story.story_title)}</strong><br><br>` : ''}
+                                    ${story.story_description ? `<div>${escapeHtml(story.story_description)}</div>` : ''}
+                                    ${story.acceptance_criteria ? `
+                                        <div style="margin-top: 10px; padding: 10px; background: #f8f9fa; border-radius: 5px;">
+                                            <strong>✅ Acceptance Criteria:</strong><br>
+                                            ${escapeHtml(story.acceptance_criteria)}
+                                        </div>
+                                    ` : ''}
+                                    ${testCasesHtml}
+                                </div>
+                            </div>
+                        `;
+                    }).join('');
+
+                    return `
+                        <div class="result-card" style="background: linear-gradient(to right, #f8f9fa, #ffffff); border-left: 5px solid #667eea;">
+                            <div class="result-title" style="font-size: 1.3rem;">
+                                🎯 Epic <span class="badge" style="font-size: 1rem;">${escapeHtml(epic.epic_id)}</span>
+                            </div>
+                            <div class="result-content">
+                                ${epic.epic_title ? `<h3 style="margin: 0 0 10px 0; color: #667eea;">${escapeHtml(epic.epic_title)}</h3>` : ''}
+                                ${epic.epic_description ? `<div style="margin-bottom: 20px;">${escapeHtml(epic.epic_description)}</div>` : ''}
+                            </div>
+                        </div>
+                        ${userStoriesHtml}
+                    `;
+                }).join('');
+            } else {
+                // Single epic format (T5 model) - use old display logic
+                epicsHtml = `
+                    ${result.epic_id || result.epic_title ? `
+                    <div class="result-card">
+                        <div class="result-title">
+                            🎯 Epic ${result.epic_id ? `<span class="badge">${escapeHtml(result.epic_id)}</span>` : ''}
+                        </div>
+                        <div class="result-content">
+                            ${result.epic_title ? `<strong>${escapeHtml(result.epic_title)}</strong><br><br>` : ''}
+                            ${result.epic_description ? escapeHtml(result.epic_description) : ''}
+                        </div>
+                    </div>
+                    ` : ''}
+
+                    ${result.story_id || result.story_title ? `
+                    <div class="result-card">
+                        <div class="result-title">
+                            👤 User Story ${result.story_id ? `<span class="badge">${escapeHtml(result.story_id)}</span>` : ''}
+                        </div>
+                        <div class="result-content">
+                            ${result.story_title ? `<strong>${escapeHtml(result.story_title)}</strong><br><br>` : ''}
+                            ${result.story_description ? escapeHtml(result.story_description) : ''}
+                            ${result.story_points ? `<br><br>📊 <strong>Story Points:</strong> <span class="badge">${escapeHtml(result.story_points)}</span>` : ''}
+                        </div>
+                    </div>
+                    ` : ''}
+
+                    ${result.acceptance_criteria ? `
+                    <div class="result-card">
+                        <div class="result-title">✅ Acceptance Criteria</div>
+                        <div class="result-content">${escapeHtml(result.acceptance_criteria)}</div>
+                    </div>
+                    ` : ''}
+
+                    ${result.test_case_id || result.test_case_description ? `
+                    <div class="result-card">
+                        <div class="result-title">
+                            🧪 Test Case ${result.test_case_id ? `<span class="badge">${escapeHtml(result.test_case_id)}</span>` : ''}
+                        </div>
+                        <div class="result-content">
+                            ${result.test_case_description ? `<strong>Description:</strong> ${escapeHtml(result.test_case_description)}` : ''}
+                        </div>
+                    </div>
+                    ` : ''}
+
+                    ${result.expected_results && result.expected_results.length > 0 ? `
+                    <div class="result-card">
+                        <div class="result-title">🎯 Expected Results</div>
+                        <div class="result-content">
+                            <ul class="result-list">
+                                ${result.expected_results.map((item, idx) => `<li><strong>${idx + 1}.</strong> ${escapeHtml(item)}</li>`).join('')}
+                            </ul>
+                        </div>
+                    </div>
+                    ` : ''}
+                `;
+            }
+
             const html = `
+                ${generatorBadge}
+
                 <div class="result-card">
                     <div class="result-title">📝 Your Input</div>
                     <div class="result-content">${escapeHtml(description)}</div>
                 </div>
 
-                ${result.epic_id || result.epic_title ? `
-                <div class="result-card">
-                    <div class="result-title">
-                        🎯 Epic ${result.epic_id ? `<span class="badge">${escapeHtml(result.epic_id)}</span>` : ''}
-                    </div>
-                    <div class="result-content">
-                        ${result.epic_title ? `<strong>${escapeHtml(result.epic_title)}</strong><br><br>` : ''}
-                        ${result.epic_description ? escapeHtml(result.epic_description) : ''}
-                    </div>
-                </div>
-                ` : ''}
-
-                ${result.story_id || result.story_title ? `
-                <div class="result-card">
-                    <div class="result-title">
-                        👤 User Story ${result.story_id ? `<span class="badge">${escapeHtml(result.story_id)}</span>` : ''}
-                    </div>
-                    <div class="result-content">
-                        ${result.story_title ? `<strong>${escapeHtml(result.story_title)}</strong><br><br>` : ''}
-                        ${result.story_description ? escapeHtml(result.story_description) : ''}
-                        ${result.story_points ? `<br><br>📊 <strong>Story Points:</strong> <span class="badge">${escapeHtml(result.story_points)}</span>` : ''}
-                    </div>
-                </div>
-                ` : ''}
-
-                ${result.acceptance_criteria ? `
-                <div class="result-card">
-                    <div class="result-title">✅ Acceptance Criteria</div>
-                    <div class="result-content">${escapeHtml(result.acceptance_criteria)}</div>
-                </div>
-                ` : ''}
-
-                ${result.test_case_id || result.test_case_description ? `
-                <div class="result-card">
-                    <div class="result-title">
-                        🧪 Test Case ${result.test_case_id ? `<span class="badge">${escapeHtml(result.test_case_id)}</span>` : ''}
-                    </div>
-                    <div class="result-content">
-                        ${result.test_case_description ? `<strong>Description:</strong> ${escapeHtml(result.test_case_description)}` : ''}
-                    </div>
-                </div>
-                ` : ''}
-
-                ${result.expected_results && result.expected_results.length > 0 ? `
-                <div class="result-card">
-                    <div class="result-title">🎯 Expected Results</div>
-                    <div class="result-content">
-                        <ul class="result-list">
-                            ${result.expected_results.map((item, idx) => `<li><strong>${idx + 1}.</strong> ${escapeHtml(item)}</li>`).join('')}
-                        </ul>
-                    </div>
-                </div>
-                ` : ''}
+                ${epicsHtml}
 
                 ${result.raw_text ? `
                 <div class="result-card">

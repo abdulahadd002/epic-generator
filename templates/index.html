@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Comprehensive Epic/Story Generator - AI-Powered Documentation</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 40px;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        .main-card {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+
+        .input-section {
+            padding: 40px;
+            background: linear-gradient(to bottom, #f8f9fa, white);
+        }
+
+        .input-label {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 15px;
+            display: block;
+        }
+
+        .input-group {
+            margin-bottom: 20px;
+        }
+
+        #descriptionInput {
+            width: 100%;
+            padding: 15px;
+            font-size: 1rem;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            resize: vertical;
+            min-height: 120px;
+            transition: border-color 0.3s;
+            font-family: inherit;
+        }
+
+        #descriptionInput:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 12px 30px;
+            font-size: 1rem;
+            font-weight: 600;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            flex: 1;
+            min-width: 200px;
+            justify-content: center;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .btn-secondary {
+            background: white;
+            color: #667eea;
+            border: 2px solid #667eea;
+        }
+
+        .btn-secondary:hover {
+            background: #f8f9fa;
+        }
+
+        .examples-section {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid #e0e0e0;
+        }
+
+        .examples-label {
+            font-size: 0.9rem;
+            color: #666;
+            margin-bottom: 10px;
+        }
+
+        .example-chips {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .example-chip {
+            padding: 8px 15px;
+            background: #f0f0f0;
+            border: 1px solid #e0e0e0;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .example-chip:hover {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+
+        .results-section {
+            padding: 40px;
+            display: none;
+        }
+
+        .results-section.show {
+            display: block;
+        }
+
+        .result-card {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 20px;
+            border-left: 4px solid #667eea;
+        }
+
+        .result-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #667eea;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .result-content {
+            color: #333;
+            font-size: 1rem;
+            line-height: 1.6;
+        }
+
+        .result-list {
+            list-style: none;
+            padding-left: 0;
+        }
+
+        .result-list li {
+            padding: 8px 0;
+            padding-left: 25px;
+            position: relative;
+        }
+
+        .result-list li:before {
+            content: "✓";
+            position: absolute;
+            left: 0;
+            color: #667eea;
+            font-weight: bold;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #667eea;
+        }
+
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .error-message {
+            background: #fee;
+            border-left: 4px solid #f00;
+            padding: 15px;
+            border-radius: 5px;
+            color: #c00;
+            margin-bottom: 20px;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #999;
+        }
+
+        .empty-state-icon {
+            font-size: 4rem;
+            margin-bottom: 20px;
+            opacity: 0.3;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 12px;
+            background: #667eea;
+            color: white;
+            border-radius: 12px;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 1.8rem;
+            }
+
+            .input-section, .results-section {
+                padding: 20px;
+            }
+
+            .btn {
+                width: 100%;
+                justify-content: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚀 Comprehensive Epic/Story Generator</h1>
+            <p>AI-Powered Project Planning - Generate detailed epics, user stories, acceptance criteria, and test cases</p>
+        </div>
+
+        <div class="main-card">
+            <!-- Input Section -->
+            <div class="input-section">
+                <div class="input-group">
+                    <label for="descriptionInput" class="input-label">
+                        Enter Your Project Description
+                    </label>
+                    <textarea
+                        id="descriptionInput"
+                        placeholder="Example: Build a mobile app for tracking daily water intake with push notifications and analytics..."
+                    ></textarea>
+                </div>
+
+                <div class="button-group">
+                    <button id="generateBtn" class="btn btn-primary">
+                        <span id="btnText">✨ Generate Comprehensive Documentation</span>
+                    </button>
+                    <button id="clearBtn" class="btn btn-secondary">
+                        🗑️ Clear
+                    </button>
+                </div>
+
+                <div class="examples-section">
+                    <div class="examples-label">
+                        <strong>Quick Examples:</strong> Click to try
+                    </div>
+                    <div class="example-chips" id="exampleChips">
+                        <!-- Examples will be loaded here -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Results Section -->
+            <div id="resultsSection" class="results-section">
+                <!-- Results will be displayed here -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // DOM Elements
+        const descriptionInput = document.getElementById('descriptionInput');
+        const generateBtn = document.getElementById('generateBtn');
+        const clearBtn = document.getElementById('clearBtn');
+        const resultsSection = document.getElementById('resultsSection');
+        const btnText = document.getElementById('btnText');
+        const exampleChips = document.getElementById('exampleChips');
+
+        // Load examples on page load
+        loadExamples();
+
+        // Event Listeners
+        generateBtn.addEventListener('click', generateEpic);
+        clearBtn.addEventListener('click', clearAll);
+        descriptionInput.addEventListener('keydown', (e) => {
+            if (e.ctrlKey && e.key === 'Enter') {
+                generateEpic();
+            }
+        });
+
+        // Load example descriptions
+        async function loadExamples() {
+            try {
+                const response = await fetch('/api/examples');
+                const data = await response.json();
+
+                if (data.success) {
+                    exampleChips.innerHTML = data.examples
+                        .slice(0, 5) // Show first 5 examples
+                        .map(example => {
+                            const short = example.substring(0, 50) + '...';
+                            return `<div class="example-chip" onclick="useExample('${escapeHtml(example)}')">${escapeHtml(short)}</div>`;
+                        })
+                        .join('');
+                }
+            } catch (error) {
+                console.error('Error loading examples:', error);
+            }
+        }
+
+        // Use an example
+        function useExample(example) {
+            descriptionInput.value = example;
+            descriptionInput.focus();
+        }
+
+        // Generate epic and user story
+        async function generateEpic() {
+            const description = descriptionInput.value.trim();
+
+            if (!description) {
+                showError('Please enter a project description');
+                return;
+            }
+
+            // Show loading state
+            generateBtn.disabled = true;
+            btnText.textContent = '⏳ Generating...';
+            showLoading();
+
+            try {
+                const response = await fetch('/api/generate', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ description })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    displayResults(data.result, description);
+                } else {
+                    showError(data.error || 'Generation failed');
+                }
+            } catch (error) {
+                showError('Network error: ' + error.message);
+            } finally {
+                generateBtn.disabled = false;
+                btnText.textContent = '✨ Generate Comprehensive Documentation';
+            }
+        }
+
+        // Display results
+        function displayResults(result, description) {
+            const html = `
+                <div class="result-card">
+                    <div class="result-title">📝 Your Input</div>
+                    <div class="result-content">${escapeHtml(description)}</div>
+                </div>
+
+                ${result.epic_id || result.epic_title ? `
+                <div class="result-card">
+                    <div class="result-title">
+                        🎯 Epic ${result.epic_id ? `<span class="badge">${escapeHtml(result.epic_id)}</span>` : ''}
+                    </div>
+                    <div class="result-content">
+                        ${result.epic_title ? `<strong>${escapeHtml(result.epic_title)}</strong><br><br>` : ''}
+                        ${result.epic_description ? escapeHtml(result.epic_description) : ''}
+                    </div>
+                </div>
+                ` : ''}
+
+                ${result.story_id || result.story_title ? `
+                <div class="result-card">
+                    <div class="result-title">
+                        👤 User Story ${result.story_id ? `<span class="badge">${escapeHtml(result.story_id)}</span>` : ''}
+                    </div>
+                    <div class="result-content">
+                        ${result.story_title ? `<strong>${escapeHtml(result.story_title)}</strong><br><br>` : ''}
+                        ${result.story_description ? escapeHtml(result.story_description) : ''}
+                        ${result.story_points ? `<br><br>📊 <strong>Story Points:</strong> <span class="badge">${escapeHtml(result.story_points)}</span>` : ''}
+                    </div>
+                </div>
+                ` : ''}
+
+                ${result.acceptance_criteria ? `
+                <div class="result-card">
+                    <div class="result-title">✅ Acceptance Criteria</div>
+                    <div class="result-content">${escapeHtml(result.acceptance_criteria)}</div>
+                </div>
+                ` : ''}
+
+                ${result.test_case_id || result.test_case_description ? `
+                <div class="result-card">
+                    <div class="result-title">
+                        🧪 Test Case ${result.test_case_id ? `<span class="badge">${escapeHtml(result.test_case_id)}</span>` : ''}
+                    </div>
+                    <div class="result-content">
+                        ${result.test_case_description ? `<strong>Description:</strong> ${escapeHtml(result.test_case_description)}` : ''}
+                    </div>
+                </div>
+                ` : ''}
+
+                ${result.expected_results && result.expected_results.length > 0 ? `
+                <div class="result-card">
+                    <div class="result-title">🎯 Expected Results</div>
+                    <div class="result-content">
+                        <ul class="result-list">
+                            ${result.expected_results.map((item, idx) => `<li><strong>${idx + 1}.</strong> ${escapeHtml(item)}</li>`).join('')}
+                        </ul>
+                    </div>
+                </div>
+                ` : ''}
+
+                ${result.raw_text ? `
+                <div class="result-card">
+                    <div class="result-title">📄 Complete Output</div>
+                    <div class="result-content" style="white-space: pre-wrap; font-family: monospace; font-size: 0.9em; background: #f5f5f5; padding: 15px; border-radius: 8px; overflow-x: auto;">${escapeHtml(result.raw_text)}</div>
+                </div>
+                ` : ''}
+            `;
+
+            resultsSection.innerHTML = html;
+            resultsSection.classList.add('show');
+            resultsSection.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+
+        // Show loading state
+        function showLoading() {
+            resultsSection.innerHTML = `
+                <div class="loading">
+                    <div class="spinner"></div>
+                    <p>AI is generating comprehensive documentation with epics, stories, and test cases...</p>
+                </div>
+            `;
+            resultsSection.classList.add('show');
+        }
+
+        // Show error
+        function showError(message) {
+            resultsSection.innerHTML = `
+                <div class="error-message">
+                    <strong>Error:</strong> ${escapeHtml(message)}
+                </div>
+            `;
+            resultsSection.classList.add('show');
+        }
+
+        // Clear all
+        function clearAll() {
+            descriptionInput.value = '';
+            resultsSection.innerHTML = '';
+            resultsSection.classList.remove('show');
+            descriptionInput.focus();
+        }
+
+        // Escape HTML to prevent XSS
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+    </script>
+</body>
+</html>

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Epic/Story Generator - Project Management Workflow</title>
+    <title>Epic/Story Generator - Granular Approval Workflow</title>
     <style>
         * {
             margin: 0;
@@ -19,7 +19,7 @@
         }
 
         .container {
-            max-width: 1400px;
+            max-width: 1600px;
             margin: 0 auto;
         }
 
@@ -161,16 +161,16 @@
         }
 
         .btn {
-            padding: 15px 35px;
-            font-size: 1.1rem;
+            padding: 12px 25px;
+            font-size: 0.95rem;
             font-weight: 600;
             border: none;
-            border-radius: 12px;
+            border-radius: 10px;
             cursor: pointer;
             transition: all 0.3s;
             display: inline-flex;
             align-items: center;
-            gap: 10px;
+            gap: 8px;
         }
 
         .btn-primary {
@@ -199,6 +199,15 @@
             color: white;
         }
 
+        .btn-success:hover:not(:disabled) {
+            background: #218838;
+        }
+
+        .btn-success:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+        }
+
         .btn-danger {
             background: #dc3545;
             color: white;
@@ -209,7 +218,12 @@
             color: #333;
         }
 
-        /* Screen 2: Review Epics */
+        .btn-small {
+            padding: 8px 16px;
+            font-size: 0.85rem;
+        }
+
+        /* Epic Container */
         .epic-container {
             margin-bottom: 25px;
             border: 2px solid #e0e0e0;
@@ -255,11 +269,11 @@
         .epic-content {
             max-height: 0;
             overflow: hidden;
-            transition: max-height 0.3s ease;
+            transition: max-height 0.4s ease;
         }
 
         .epic-container.expanded .epic-content {
-            max-height: 5000px;
+            max-height: 10000px;
         }
 
         .epic-body {
@@ -275,19 +289,96 @@
             line-height: 1.6;
         }
 
+        /* User Story */
         .user-story {
             background: white;
+            border: 2px solid #e0e0e0;
             border-left: 4px solid #667eea;
             padding: 20px;
-            margin-bottom: 15px;
+            margin-bottom: 20px;
             border-radius: 8px;
+            position: relative;
+        }
+
+        .user-story.approved {
+            border-color: #28a745;
+            background: #f0fff4;
         }
 
         .story-header {
             font-weight: 600;
             color: #667eea;
-            margin-bottom: 10px;
+            margin-bottom: 15px;
             font-size: 1.1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .story-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid #e0e0e0;
+        }
+
+        /* Test Case */
+        .test-case {
+            margin-top: 15px;
+            padding: 15px;
+            background: #f8f9fa;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            position: relative;
+        }
+
+        .test-case.approved {
+            border-color: #28a745;
+            background: #f0fff8;
+        }
+
+        .test-case-title {
+            font-weight: 600;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .test-case-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 12px;
+        }
+
+        /* Acceptance Criteria */
+        .acceptance-criteria {
+            margin-top: 15px;
+            padding: 12px;
+            background: #e9ecef;
+            border: 2px solid #dee2e6;
+            border-radius: 6px;
+            position: relative;
+        }
+
+        .acceptance-criteria.approved {
+            border-color: #28a745;
+            background: #e8f5e9;
+        }
+
+        .ac-header {
+            font-weight: 600;
+            margin-bottom: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .ac-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 10px;
         }
 
         .badge {
@@ -308,26 +399,6 @@
         .badge-warning {
             background: #ffc107;
             color: #333;
-        }
-
-        .test-case {
-            margin-top: 15px;
-            padding: 15px;
-            background: #f0f0f0;
-            border-radius: 8px;
-        }
-
-        .test-case-title {
-            font-weight: 600;
-            margin-bottom: 8px;
-        }
-
-        .epic-actions {
-            display: flex;
-            gap: 10px;
-            margin-top: 20px;
-            padding-top: 20px;
-            border-top: 2px solid #e0e0e0;
         }
 
         .loading {
@@ -351,7 +422,7 @@
             100% { transform: rotate(360deg); }
         }
 
-        /* Screen 3: Approved Epics */
+        /* Screen 3: Approved */
         .approved-summary {
             background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
             color: white;
@@ -394,6 +465,14 @@
             justify-content: space-between;
         }
 
+        .epic-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 2px solid #e0e0e0;
+        }
+
         @media (max-width: 768px) {
             .header h1 {
                 font-size: 1.8rem;
@@ -421,6 +500,12 @@
                 height: 40px;
                 font-size: 1rem;
             }
+
+            .story-actions,
+            .test-case-actions,
+            .ac-actions {
+                flex-wrap: wrap;
+            }
         }
     </style>
 </head>
@@ -428,7 +513,7 @@
     <div class="container">
         <div class="header">
             <h1>🚀 Epic/Story Generator</h1>
-            <p>AI-Powered Project Planning Workflow</p>
+            <p>Granular Approval Workflow - Review & Approve Each Component</p>
         </div>
 
         <!-- Progress Stepper -->
@@ -440,7 +525,7 @@
                 </div>
                 <div class="stepper-item" id="step2">
                     <div class="stepper-circle">2</div>
-                    <div class="stepper-label">Review & Approve Epics</div>
+                    <div class="stepper-label">Review & Approve</div>
                 </div>
                 <div class="stepper-item" id="step3">
                     <div class="stepper-circle">3</div>
@@ -473,8 +558,8 @@
 
             <!-- Screen 2: Review Epics -->
             <div id="screen2" class="screen">
-                <h2 style="margin-bottom: 20px; color: #333;">📋 Review Generated Epics</h2>
-                <p style="margin-bottom: 30px; color: #666;">Review each epic and approve, cancel, or regenerate as needed.</p>
+                <h2 style="margin-bottom: 10px; color: #333;">📋 Review & Approve Components</h2>
+                <p style="margin-bottom: 30px; color: #666;">Review each epic, user story, test case, and acceptance criteria. Approve only what you need.</p>
 
                 <div id="epicsContainer">
                     <!-- Epics will be dynamically loaded here -->
@@ -485,16 +570,16 @@
                         ← Back to Input
                     </button>
                     <button class="btn btn-success" id="viewApprovedBtn" onclick="goToScreen(3)">
-                        View Approved Epics →
+                        View Approved Documentation →
                     </button>
                 </div>
             </div>
 
-            <!-- Screen 3: Approved Epics -->
+            <!-- Screen 3: Approved Documentation -->
             <div id="screen3" class="screen">
                 <div class="approved-summary">
                     <h2>✅ Approved Project Documentation</h2>
-                    <p id="approvedCount">0 epics approved</p>
+                    <p id="approvedCount">Loading...</p>
                 </div>
 
                 <div id="approvedEpicsContainer">
@@ -585,7 +670,16 @@
                     allEpics = data.result.epics.map(epic => ({
                         ...epic,
                         approved: false,
-                        expanded: false
+                        expanded: false,
+                        user_stories: epic.user_stories.map(story => ({
+                            ...story,
+                            approved: false,
+                            ac_approved: false,
+                            test_cases: story.test_cases?.map(tc => ({
+                                ...tc,
+                                approved: false
+                            })) || []
+                        }))
                     }));
                     generatorUsed = data.generator_used || 'AI Generator';
                     displayEpicsForReview();
@@ -604,12 +698,15 @@
         function displayEpicsForReview() {
             const container = document.getElementById('epicsContainer');
 
-            const html = allEpics.map((epic, index) => {
-                const userStoriesHtml = epic.user_stories.map(story => {
-                    const testCasesHtml = story.test_cases?.map(tc => `
-                        <div class="test-case">
+            const html = allEpics.map((epic, eIndex) => {
+                const userStoriesHtml = epic.user_stories.map((story, sIndex) => {
+                    const testCasesHtml = story.test_cases?.map((tc, tcIndex) => `
+                        <div class="test-case ${tc.approved ? 'approved' : ''}" id="tc-${eIndex}-${sIndex}-${tcIndex}">
                             <div class="test-case-title">
-                                🧪 Test Case <span class="badge">${escapeHtml(tc.test_case_id)}</span>
+                                <span>
+                                    🧪 Test Case <span class="badge">${escapeHtml(tc.test_case_id)}</span>
+                                    ${tc.approved ? '<span class="badge badge-success">✓</span>' : ''}
+                                </span>
                             </div>
                             <div><strong>Description:</strong> ${escapeHtml(tc.test_case_description)}</div>
                             ${tc.expected_results?.length > 0 ? `
@@ -618,31 +715,66 @@
                                     ${tc.expected_results.map(result => `<li>${escapeHtml(result)}</li>`).join('')}
                                 </ul>
                             ` : ''}
+                            <div class="test-case-actions">
+                                <button class="btn btn-success btn-small" onclick="approveTestCase(${eIndex}, ${sIndex}, ${tcIndex})" ${tc.approved ? 'disabled' : ''}>
+                                    ${tc.approved ? '✓ Approved' : '✓ Approve'}
+                                </button>
+                                <button class="btn btn-danger btn-small" onclick="cancelTestCase(${eIndex}, ${sIndex}, ${tcIndex})">
+                                    ✕ Cancel
+                                </button>
+                            </div>
                         </div>
                     `).join('') || '';
 
                     return `
-                        <div class="user-story">
+                        <div class="user-story ${story.approved ? 'approved' : ''}" id="story-${eIndex}-${sIndex}">
                             <div class="story-header">
-                                👤 User Story <span class="badge">${escapeHtml(story.story_id)}</span>
-                                ${story.story_points ? `<span class="badge badge-warning">${escapeHtml(story.story_points)} pts</span>` : ''}
+                                <span>
+                                    👤 User Story <span class="badge">${escapeHtml(story.story_id)}</span>
+                                    ${story.story_points ? `<span class="badge badge-warning">${escapeHtml(story.story_points)} pts</span>` : ''}
+                                    ${story.approved ? '<span class="badge badge-success">✓ Approved</span>' : ''}
+                                </span>
                             </div>
                             <div><strong>${escapeHtml(story.story_title)}</strong></div>
                             <div style="margin-top: 10px;">${escapeHtml(story.story_description)}</div>
+
                             ${story.acceptance_criteria ? `
-                                <div style="margin-top: 15px; padding: 12px; background: #e9ecef; border-radius: 6px;">
-                                    <strong>✅ Acceptance Criteria:</strong><br>
-                                    ${escapeHtml(story.acceptance_criteria)}
+                                <div class="acceptance-criteria ${story.ac_approved ? 'approved' : ''}" id="ac-${eIndex}-${sIndex}">
+                                    <div class="ac-header">
+                                        <span>
+                                            <strong>✅ Acceptance Criteria</strong>
+                                            ${story.ac_approved ? '<span class="badge badge-success">✓</span>' : ''}
+                                        </span>
+                                    </div>
+                                    <div style="margin-top: 8px;">${escapeHtml(story.acceptance_criteria)}</div>
+                                    <div class="ac-actions">
+                                        <button class="btn btn-success btn-small" onclick="approveAC(${eIndex}, ${sIndex})" ${story.ac_approved ? 'disabled' : ''}>
+                                            ${story.ac_approved ? '✓ Approved' : '✓ Approve'}
+                                        </button>
+                                        <button class="btn btn-danger btn-small" onclick="cancelAC(${eIndex}, ${sIndex})">
+                                            ✕ Cancel
+                                        </button>
+                                    </div>
                                 </div>
                             ` : ''}
+
                             ${testCasesHtml}
+
+                            <div class="story-actions">
+                                <button class="btn btn-success btn-small" onclick="approveStory(${eIndex}, ${sIndex})" ${story.approved ? 'disabled' : ''}>
+                                    ${story.approved ? '✓ Approved' : '✓ Approve Story'}
+                                </button>
+                                <button class="btn btn-danger btn-small" onclick="cancelStory(${eIndex}, ${sIndex})">
+                                    ✕ Cancel Story
+                                </button>
+                            </div>
                         </div>
                     `;
                 }).join('');
 
                 return `
-                    <div class="epic-container ${epic.expanded ? 'expanded' : ''} ${epic.approved ? 'approved' : ''}" id="epic-${index}">
-                        <div class="epic-header" onclick="toggleEpic(${index})">
+                    <div class="epic-container ${epic.expanded ? 'expanded' : ''} ${epic.approved ? 'approved' : ''}" id="epic-${eIndex}">
+                        <div class="epic-header" onclick="toggleEpic(${eIndex})">
                             <div class="epic-title">
                                 🎯 Epic <span class="badge">${escapeHtml(epic.epic_id)}</span>
                                 ${epic.approved ? '<span class="badge badge-success">✓ Approved</span>' : ''}
@@ -658,14 +790,11 @@
                                 </div>
                                 ${userStoriesHtml}
                                 <div class="epic-actions">
-                                    <button class="btn btn-success" onclick="approveEpic(${index})" ${epic.approved ? 'disabled' : ''}>
+                                    <button class="btn btn-success" onclick="approveEpic(${eIndex})" ${epic.approved ? 'disabled' : ''}>
                                         ${epic.approved ? '✓ Approved' : '✓ Approve Epic'}
                                     </button>
-                                    <button class="btn btn-warning" onclick="regenerateEpic(${index})">
-                                        🔄 Regenerate
-                                    </button>
-                                    <button class="btn btn-danger" onclick="cancelEpic(${index})">
-                                        ✕ Cancel
+                                    <button class="btn btn-danger" onclick="cancelEpic(${eIndex})">
+                                        ✕ Cancel Epic
                                     </button>
                                 </div>
                             </div>
@@ -679,67 +808,154 @@
         }
 
         // Toggle epic expansion
-        function toggleEpic(index) {
-            allEpics[index].expanded = !allEpics[index].expanded;
+        function toggleEpic(eIndex) {
+            allEpics[eIndex].expanded = !allEpics[eIndex].expanded;
             displayEpicsForReview();
         }
 
-        // Approve epic
-        function approveEpic(index) {
-            allEpics[index].approved = true;
+        // Approve epic (approves entire epic with all children)
+        function approveEpic(eIndex) {
+            allEpics[eIndex].approved = true;
+            allEpics[eIndex].user_stories.forEach(story => {
+                story.approved = true;
+                story.ac_approved = true;
+                story.test_cases?.forEach(tc => tc.approved = true);
+            });
             displayEpicsForReview();
         }
 
-        // Regenerate epic
-        async function regenerateEpic(index) {
-            if (!confirm('Regenerate this epic? This will create a new version.')) return;
-
-            const epicContainer = document.getElementById(`epic-${index}`);
-            epicContainer.querySelector('.epic-body').innerHTML = `
-                <div class="loading">
-                    <div class="spinner"></div>
-                    <p>Regenerating epic...</p>
-                </div>
-            `;
-
-            // TODO: Implement epic regeneration API call
-            alert('Epic regeneration feature coming soon!');
+        // Approve user story (and all its children)
+        function approveStory(eIndex, sIndex) {
+            const story = allEpics[eIndex].user_stories[sIndex];
+            story.approved = true;
+            story.ac_approved = true;
+            story.test_cases?.forEach(tc => tc.approved = true);
             displayEpicsForReview();
         }
 
-        // Cancel epic
-        function cancelEpic(index) {
-            if (!confirm('Remove this epic from the project?')) return;
-            allEpics.splice(index, 1);
+        // Approve acceptance criteria
+        function approveAC(eIndex, sIndex) {
+            allEpics[eIndex].user_stories[sIndex].ac_approved = true;
+            displayEpicsForReview();
+        }
+
+        // Approve test case
+        function approveTestCase(eIndex, sIndex, tcIndex) {
+            allEpics[eIndex].user_stories[sIndex].test_cases[tcIndex].approved = true;
+            displayEpicsForReview();
+        }
+
+        // Cancel functions
+        function cancelEpic(eIndex) {
+            if (!confirm('Remove this entire epic?')) return;
+            allEpics.splice(eIndex, 1);
+            displayEpicsForReview();
+        }
+
+        function cancelStory(eIndex, sIndex) {
+            if (!confirm('Remove this user story?')) return;
+            allEpics[eIndex].user_stories.splice(sIndex, 1);
+            displayEpicsForReview();
+        }
+
+        function cancelAC(eIndex, sIndex) {
+            if (!confirm('Remove acceptance criteria?')) return;
+            allEpics[eIndex].user_stories[sIndex].acceptance_criteria = null;
+            allEpics[eIndex].user_stories[sIndex].ac_approved = false;
+            displayEpicsForReview();
+        }
+
+        function cancelTestCase(eIndex, sIndex, tcIndex) {
+            if (!confirm('Remove this test case?')) return;
+            allEpics[eIndex].user_stories[sIndex].test_cases.splice(tcIndex, 1);
             displayEpicsForReview();
         }
 
         // Update approved button
         function updateApprovedButton() {
-            const approvedCount = allEpics.filter(e => e.approved).length;
+            let approvedCount = 0;
+            allEpics.forEach(epic => {
+                epic.user_stories.forEach(story => {
+                    if (story.approved) approvedCount++;
+                    if (story.ac_approved) approvedCount++;
+                    story.test_cases?.forEach(tc => {
+                        if (tc.approved) approvedCount++;
+                    });
+                });
+            });
+
             const btn = document.getElementById('viewApprovedBtn');
-            btn.innerHTML = `View Approved Epics (${approvedCount}) →`;
+            btn.innerHTML = `View Approved Documentation (${approvedCount} items) →`;
             btn.disabled = approvedCount === 0;
         }
 
         // Update approved screen
         function updateApprovedScreen() {
-            const approvedEpics = allEpics.filter(e => e.approved);
-            const count = approvedEpics.length;
+            let approvedStories = 0;
+            let approvedACs = 0;
+            let approvedTCs = 0;
 
-            document.getElementById('approvedCount').textContent = `${count} epic${count !== 1 ? 's' : ''} approved`;
+            const approvedEpics = allEpics.filter(epic => {
+                // Include epic if it has any approved components
+                return epic.user_stories.some(story =>
+                    story.approved || story.ac_approved || story.test_cases?.some(tc => tc.approved)
+                );
+            });
 
-            // Display approved epics
+            // Display approved components
             const approvedHtml = approvedEpics.map(epic => {
-                const userStoriesHtml = epic.user_stories.map(story => `
-                    <div class="user-story">
-                        <div class="story-header">
-                            👤 User Story <span class="badge">${escapeHtml(story.story_id)}</span>
+                const approvedStoriesInEpic = epic.user_stories.filter(story => {
+                    const hasApproved = story.approved || story.ac_approved || story.test_cases?.some(tc => tc.approved);
+                    if (story.approved) approvedStories++;
+                    if (story.ac_approved) approvedACs++;
+                    story.test_cases?.forEach(tc => { if (tc.approved) approvedTCs++; });
+                    return hasApproved;
+                });
+
+                if (approvedStoriesInEpic.length === 0) return '';
+
+                const storiesHtml = approvedStoriesInEpic.map(story => {
+                    const testCasesHtml = story.test_cases?.filter(tc => tc.approved).map(tc => `
+                        <div class="test-case approved">
+                            <div class="test-case-title">
+                                🧪 Test Case <span class="badge">${escapeHtml(tc.test_case_id)}</span>
+                                <span class="badge badge-success">✓</span>
+                            </div>
+                            <div><strong>Description:</strong> ${escapeHtml(tc.test_case_description)}</div>
+                            ${tc.expected_results?.length > 0 ? `
+                                <div style="margin-top: 10px;"><strong>Expected Results:</strong></div>
+                                <ul style="margin-left: 20px; margin-top: 5px;">
+                                    ${tc.expected_results.map(result => `<li>${escapeHtml(result)}</li>`).join('')}
+                                </ul>
+                            ` : ''}
                         </div>
-                        <div><strong>${escapeHtml(story.story_title)}</strong></div>
-                        <div style="margin-top: 10px;">${escapeHtml(story.story_description)}</div>
-                    </div>
-                `).join('');
+                    `).join('') || '';
+
+                    return `
+                        ${story.approved ? `
+                            <div class="user-story approved">
+                                <div class="story-header">
+                                    👤 User Story <span class="badge">${escapeHtml(story.story_id)}</span>
+                                    <span class="badge badge-success">✓ Approved</span>
+                                </div>
+                                <div><strong>${escapeHtml(story.story_title)}</strong></div>
+                                <div style="margin-top: 10px;">${escapeHtml(story.story_description)}</div>
+
+                                ${story.ac_approved && story.acceptance_criteria ? `
+                                    <div class="acceptance-criteria approved">
+                                        <div class="ac-header">
+                                            <strong>✅ Acceptance Criteria</strong>
+                                            <span class="badge badge-success">✓</span>
+                                        </div>
+                                        <div style="margin-top: 8px;">${escapeHtml(story.acceptance_criteria)}</div>
+                                    </div>
+                                ` : ''}
+
+                                ${testCasesHtml}
+                            </div>
+                        ` : ''}
+                    `;
+                }).join('');
 
                 return `
                     <div class="epic-container approved" style="margin-bottom: 20px;">
@@ -754,13 +970,15 @@
                                 <div class="epic-description">
                                     ${escapeHtml(epic.epic_description)}
                                 </div>
-                                ${userStoriesHtml}
+                                ${storiesHtml}
                             </div>
                         </div>
                     </div>
                 `;
             }).join('');
 
+            document.getElementById('approvedCount').textContent =
+                `${approvedStories} User Stories, ${approvedACs} Acceptance Criteria, ${approvedTCs} Test Cases`;
             document.getElementById('approvedEpicsContainer').innerHTML = approvedHtml;
 
             // Generate complete output
@@ -771,18 +989,18 @@
                 completeOutput += `Epic ${epic.epic_id}: ${epic.epic_title}\n`;
                 completeOutput += `Description: ${epic.epic_description}\n\n`;
 
-                epic.user_stories.forEach(story => {
+                epic.user_stories.filter(s => s.approved).forEach(story => {
                     completeOutput += `User Story ${story.story_id}: ${story.story_title}\n`;
                     completeOutput += `Description: ${story.story_description}\n`;
                     if (story.story_points) {
                         completeOutput += `Story Points: ${story.story_points}\n`;
                     }
-                    if (story.acceptance_criteria) {
+                    if (story.ac_approved && story.acceptance_criteria) {
                         completeOutput += `Acceptance Criteria: ${story.acceptance_criteria}\n`;
                     }
                     completeOutput += '\n';
 
-                    story.test_cases?.forEach(tc => {
+                    story.test_cases?.filter(tc => tc.approved).forEach(tc => {
                         completeOutput += `Test Case ID: ${tc.test_case_id}\n`;
                         completeOutput += `Test Case Description: ${tc.test_case_description}\n`;
                         if (tc.expected_results?.length > 0) {

@@ -143,6 +143,41 @@ Now generate the documentation using ONLY specific details from the project desc
 
         return prompt
 
+    def _count_features(self, description: str) -> int:
+        """
+        Analyze project description and count distinct features
+
+        Args:
+            description: Project description text
+
+        Returns:
+            Number of features detected (minimum 3, maximum 15)
+        """
+        import re
+
+        # Count numbered features (1. 2. 3. etc.)
+        numbered_pattern = r'(?:^|\n)\s*\d+\.\s+[A-Z]'
+        numbered_features = len(re.findall(numbered_pattern, description, re.MULTILINE))
+
+        # Count bullet points/dashes (- Feature or * Feature)
+        bullet_pattern = r'(?:^|\n)\s*[-*]\s+[A-Z]'
+        bullet_features = len(re.findall(bullet_pattern, description, re.MULTILINE))
+
+        # Count "Core Features Required:" section items
+        core_features_match = re.search(r'Core Features Required:(.+?)(?=\n\n|\Z)', description, re.DOTALL | re.IGNORECASE)
+        core_features_count = 0
+        if core_features_match:
+            core_section = core_features_match.group(1)
+            core_features_count = len(re.findall(r'\d+\.', core_section))
+
+        # Use the highest count found
+        feature_count = max(numbered_features, bullet_features, core_features_count)
+
+        # Default to 5 if no clear structure found, otherwise clamp between 3-15
+        if feature_count == 0:
+            return 5
+        return max(3, min(15, feature_count))
+
     def generate_quick_summary(self, project_description: str) -> Dict:
         """
         Generate comprehensive documentation with multiple epics
@@ -154,9 +189,12 @@ Now generate the documentation using ONLY specific details from the project desc
         Returns:
             Comprehensive documentation with multiple epics
         """
+        # Dynamically determine number of epics based on features in description
+        num_epics = self._count_features(project_description)
+
         return self.generate_comprehensive_documentation(
             project_description,
-            num_epics=5,  # Generate 5 major epics to cover different feature areas
+            num_epics=num_epics,  # Dynamic epic count based on feature analysis
             num_stories_per_epic=2,  # 2 user stories per epic for detailed coverage
             include_test_cases=True
         )

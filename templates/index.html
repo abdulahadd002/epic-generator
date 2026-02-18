@@ -218,6 +218,44 @@
             color: #333;
         }
 
+        .btn-regenerate {
+            background: #17a2b8;
+            color: white;
+        }
+
+        .btn-regenerate:hover:not(:disabled) {
+            background: #138496;
+        }
+
+        .btn-regenerate:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .regenerating {
+            position: relative;
+            pointer-events: none;
+            opacity: 0.5;
+        }
+
+        .regenerating::after {
+            content: 'Regenerating...';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(255,255,255,0.85);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            color: #17a2b8;
+            font-size: 1rem;
+            border-radius: inherit;
+            z-index: 10;
+        }
+
         .btn-small {
             padding: 8px 16px;
             font-size: 0.85rem;
@@ -719,6 +757,9 @@
                                 <button class="btn btn-success btn-small" onclick="approveTestCase(${eIndex}, ${sIndex}, ${tcIndex})" ${tc.approved ? 'disabled' : ''}>
                                     ${tc.approved ? '✓ Approved' : '✓ Approve'}
                                 </button>
+                                <button class="btn btn-regenerate btn-small" onclick="regenerateTestCase(${eIndex}, ${sIndex}, ${tcIndex})">
+                                    🔄 Regenerate
+                                </button>
                                 <button class="btn btn-danger btn-small" onclick="cancelTestCase(${eIndex}, ${sIndex}, ${tcIndex})">
                                     ✕ Cancel
                                 </button>
@@ -751,6 +792,9 @@
                                         <button class="btn btn-success btn-small" onclick="approveAC(${eIndex}, ${sIndex})" ${story.ac_approved ? 'disabled' : ''}>
                                             ${story.ac_approved ? '✓ Approved' : '✓ Approve'}
                                         </button>
+                                        <button class="btn btn-regenerate btn-small" onclick="regenerateAC(${eIndex}, ${sIndex})">
+                                            🔄 Regenerate
+                                        </button>
                                         <button class="btn btn-danger btn-small" onclick="cancelAC(${eIndex}, ${sIndex})">
                                             ✕ Cancel
                                         </button>
@@ -763,6 +807,9 @@
                             <div class="story-actions">
                                 <button class="btn btn-success btn-small" onclick="approveStory(${eIndex}, ${sIndex})" ${story.approved ? 'disabled' : ''}>
                                     ${story.approved ? '✓ Approved' : '✓ Approve Story'}
+                                </button>
+                                <button class="btn btn-regenerate btn-small" onclick="regenerateStory(${eIndex}, ${sIndex})">
+                                    🔄 Regenerate Story
                                 </button>
                                 <button class="btn btn-danger btn-small" onclick="cancelStory(${eIndex}, ${sIndex})">
                                     ✕ Cancel Story
@@ -792,6 +839,9 @@
                                 <div class="epic-actions">
                                     <button class="btn btn-success" onclick="approveEpic(${eIndex})" ${epic.approved ? 'disabled' : ''}>
                                         ${epic.approved ? '✓ Approved' : '✓ Approve Epic'}
+                                    </button>
+                                    <button class="btn btn-regenerate" onclick="regenerateEpic(${eIndex})">
+                                        🔄 Regenerate Epic
                                     </button>
                                     <button class="btn btn-danger" onclick="cancelEpic(${eIndex})">
                                         ✕ Cancel Epic
@@ -869,6 +919,170 @@
             if (!confirm('Remove this test case?')) return;
             allEpics[eIndex].user_stories[sIndex].test_cases.splice(tcIndex, 1);
             displayEpicsForReview();
+        }
+
+        // Regenerate functions
+        async function regenerateEpic(eIndex) {
+            const epic = allEpics[eIndex];
+            const container = document.getElementById(`epic-${eIndex}`);
+            container.classList.add('regenerating');
+
+            try {
+                const response = await fetch('/api/regenerate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        type: 'epic',
+                        project_description: projectDescription,
+                        context: {
+                            epic_id: epic.epic_id,
+                            epic_title: epic.epic_title,
+                            epic_description: epic.epic_description
+                        }
+                    })
+                });
+                const data = await response.json();
+                if (data.success) {
+                    const newEpic = data.data;
+                    newEpic.approved = false;
+                    newEpic.expanded = true;
+                    newEpic.user_stories = newEpic.user_stories.map(story => ({
+                        ...story,
+                        approved: false,
+                        ac_approved: false,
+                        test_cases: story.test_cases?.map(tc => ({ ...tc, approved: false })) || []
+                    }));
+                    allEpics[eIndex] = newEpic;
+                    displayEpicsForReview();
+                } else {
+                    alert('Regeneration failed: ' + (data.error || 'Unknown error'));
+                }
+            } catch (error) {
+                alert('Network error: ' + error.message);
+            } finally {
+                container.classList.remove('regenerating');
+            }
+        }
+
+        async function regenerateStory(eIndex, sIndex) {
+            const epic = allEpics[eIndex];
+            const story = epic.user_stories[sIndex];
+            const storyEl = document.getElementById(`story-${eIndex}-${sIndex}`);
+            storyEl.classList.add('regenerating');
+
+            try {
+                const response = await fetch('/api/regenerate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        type: 'story',
+                        project_description: projectDescription,
+                        context: {
+                            epic_id: epic.epic_id,
+                            epic_title: epic.epic_title,
+                            epic_description: epic.epic_description,
+                            story_id: story.story_id,
+                            story_title: story.story_title,
+                            story_description: story.story_description
+                        }
+                    })
+                });
+                const data = await response.json();
+                if (data.success) {
+                    const newStory = data.data;
+                    newStory.approved = false;
+                    newStory.ac_approved = false;
+                    newStory.test_cases = newStory.test_cases?.map(tc => ({ ...tc, approved: false })) || [];
+                    allEpics[eIndex].user_stories[sIndex] = newStory;
+                    displayEpicsForReview();
+                } else {
+                    alert('Regeneration failed: ' + (data.error || 'Unknown error'));
+                }
+            } catch (error) {
+                alert('Network error: ' + error.message);
+            } finally {
+                storyEl.classList.remove('regenerating');
+            }
+        }
+
+        async function regenerateAC(eIndex, sIndex) {
+            const epic = allEpics[eIndex];
+            const story = epic.user_stories[sIndex];
+            const acEl = document.getElementById(`ac-${eIndex}-${sIndex}`);
+            acEl.classList.add('regenerating');
+
+            try {
+                const response = await fetch('/api/regenerate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        type: 'acceptance_criteria',
+                        project_description: projectDescription,
+                        context: {
+                            epic_id: epic.epic_id,
+                            epic_title: epic.epic_title,
+                            epic_description: epic.epic_description,
+                            story_id: story.story_id,
+                            story_title: story.story_title,
+                            story_description: story.story_description
+                        }
+                    })
+                });
+                const data = await response.json();
+                if (data.success) {
+                    allEpics[eIndex].user_stories[sIndex].acceptance_criteria = data.data;
+                    allEpics[eIndex].user_stories[sIndex].ac_approved = false;
+                    displayEpicsForReview();
+                } else {
+                    alert('Regeneration failed: ' + (data.error || 'Unknown error'));
+                }
+            } catch (error) {
+                alert('Network error: ' + error.message);
+            } finally {
+                acEl.classList.remove('regenerating');
+            }
+        }
+
+        async function regenerateTestCase(eIndex, sIndex, tcIndex) {
+            const epic = allEpics[eIndex];
+            const story = epic.user_stories[sIndex];
+            const tc = story.test_cases[tcIndex];
+            const tcEl = document.getElementById(`tc-${eIndex}-${sIndex}-${tcIndex}`);
+            tcEl.classList.add('regenerating');
+
+            try {
+                const response = await fetch('/api/regenerate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        type: 'test_case',
+                        project_description: projectDescription,
+                        context: {
+                            epic_id: epic.epic_id,
+                            epic_title: epic.epic_title,
+                            epic_description: epic.epic_description,
+                            story_id: story.story_id,
+                            story_title: story.story_title,
+                            story_description: story.story_description,
+                            test_case_id: tc.test_case_id,
+                            test_case_description: tc.test_case_description
+                        }
+                    })
+                });
+                const data = await response.json();
+                if (data.success) {
+                    const newTC = data.data;
+                    newTC.approved = false;
+                    allEpics[eIndex].user_stories[sIndex].test_cases[tcIndex] = newTC;
+                    displayEpicsForReview();
+                } else {
+                    alert('Regeneration failed: ' + (data.error || 'Unknown error'));
+                }
+            } catch (error) {
+                alert('Network error: ' + error.message);
+            } finally {
+                tcEl.classList.remove('regenerating');
+            }
         }
 
         // Update approved button

@@ -5,9 +5,16 @@ Run this to start a web interface for your AI model
 
 from flask import Flask, render_template, request, jsonify
 from flask_cors import CORS
-from src.inference import EpicStoryGenerator
+# Only import modules we actually use (Gemini API mode)
+try:
+    from src.inference import EpicStoryGenerator
+except ImportError:
+    EpicStoryGenerator = None  # T5 model not available
 from src.gemini_generator import GeminiEpicGenerator
-from src.data_collector import TrainingDataCollector
+try:
+    from src.data_collector import TrainingDataCollector
+except ImportError:
+    TrainingDataCollector = None  # Data collector not available
 import os
 import sys
 
@@ -47,12 +54,16 @@ print("[INFO] T5 Model disabled - Gemini API exclusive mode")
 
 # Initialize Training Data Collector
 print("\n[3/3] Initializing Training Data Collector...")
-try:
-    data_collector = TrainingDataCollector()
-    stats = data_collector.get_stats()
-    print(f"[SUCCESS] Data Collector ready! ({stats['total_examples']} examples collected)")
-except Exception as e:
-    print(f"[ERROR] Data Collector initialization failed: {e}")
+if TrainingDataCollector:
+    try:
+        data_collector = TrainingDataCollector()
+        stats = data_collector.get_stats()
+        print(f"[SUCCESS] Data Collector ready! ({stats['total_examples']} examples collected)")
+    except Exception as e:
+        print(f"[ERROR] Data Collector initialization failed: {e}")
+        data_collector = None
+else:
+    print("[INFO] Data Collector not available (torch not installed)")
     data_collector = None
 
 print("\n" + "="*80)
@@ -357,14 +368,18 @@ def generate():
                     print(f"[API] [SUCCESS] Gemini API generation successful")
                     sys.stdout.flush()
 
-                    # Save training data for T5 model learning
+                    # Save training data for T5 model learning (optional)
                     if data_collector:
-                        data_collector.save_training_example(
-                            project_description=description,
-                            generated_output=formatted_output,
-                            generator_used="Gemini API"
-                        )
-                        sys.stdout.flush()
+                        try:
+                            data_collector.save_training_example(
+                                project_description=description,
+                                generated_output=formatted_output,
+                                generator_used="Gemini API"
+                            )
+                            sys.stdout.flush()
+                        except Exception as collector_error:
+                            print(f"[WARNING] Data collector failed (non-critical): {collector_error}")
+                            sys.stdout.flush()
                 else:
                     print(f"[API] [ERROR] Gemini API generation failed: {result.get('error')}")
                     sys.stdout.flush()
@@ -464,6 +479,437 @@ def health():
         },
         'primary_generator': 'Gemini API' if gemini_generator else ('T5 Model' if t5_generator else 'None')
     })
+
+
+@app.route('/api/regenerate', methods=['POST'])
+def regenerate():
+    """
+    API endpoint to regenerate a specific component of an epic.
+
+    Request JSON:
+    {
+        "type": "epic" | "story" | "acceptance_criteria" | "test_case",
+        "project_description": "Original project description",
+        "context": {
+            "epic_title": "...",
+            "epic_description": "...",
+            "story_title": "...",
+            "story_description": "...",
+            "story_id": "E1-US1",
+            "epic_id": "E1"
+        }
+    }
+    """
+    try:
+        data = request.get_json()
+        regen_type = data.get('type', '').strip()
+        project_description = data.get('project_description', '').strip()
+        context = data.get('context', {})
+
+        if not regen_type or not project_description:
+            return jsonify({
+                'success': False,
+                'error': 'Missing type or project_description'
+            }), 400
+
+        if not gemini_generator:
+            return jsonify({
+                'success': False,
+                'error': 'Gemini API not available'
+            }), 503
+
+        prompt = _build_regenerate_prompt(regen_type, project_description, context)
+
+        print(f"\n[API] Regenerating {regen_type}...")
+        sys.stdout.flush()
+
+        response = gemini_generator.model.generate_content(prompt)
+        raw_text = response.text
+
+        print(f"[API] [SUCCESS] Regeneration complete for {regen_type}")
+        sys.stdout.flush()
+
+        # Parse the regenerated content based on type
+        if regen_type == 'epic':
+            result = parse_multiple_epics(raw_text)
+            if result['epics']:
+                return jsonify({
+                    'success': True,
+                    'type': 'epic',
+                    'data': result['epics'][0]
+                })
+            else:
+                return jsonify({
+                    'success': False,
+                    'error': 'Failed to parse regenerated epic'
+                }), 500
+
+        elif regen_type == 'story':
+            result = _parse_single_story(raw_text, context.get('epic_id', 'E1'))
+            return jsonify({
+                'success': True,
+                'type': 'story',
+                'data': result
+            })
+
+        elif regen_type == 'acceptance_criteria':
+            ac_text = _parse_acceptance_criteria(raw_text)
+            return jsonify({
+                'success': True,
+                'type': 'acceptance_criteria',
+                'data': ac_text
+            })
+
+        elif regen_type == 'test_case':
+            tc_data = _parse_single_test_case(raw_text, context.get('story_id', 'E1-US1'))
+            return jsonify({
+                'success': True,
+                'type': 'test_case',
+                'data': tc_data
+            })
+
+        else:
+            return jsonify({
+                'success': False,
+                'error': f'Unknown regeneration type: {regen_type}'
+            }), 400
+
+    except Exception as e:
+        print(f"[ERROR] Regeneration failed: {e}")
+        sys.stdout.flush()
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+def _build_regenerate_prompt(regen_type: str, project_description: str, context: dict) -> str:
+    """Build a targeted prompt for regenerating a specific component."""
+    epic_title = context.get('epic_title', '')
+    epic_description = context.get('epic_description', '')
+    story_title = context.get('story_title', '')
+    story_description = context.get('story_description', '')
+    story_id = context.get('story_id', 'E1-US1')
+    epic_id = context.get('epic_id', 'E1')
+    user_requirements = context.get('user_requirements', '')
+
+    # Build user requirements section if provided
+    user_req_section = ''
+    if user_requirements.strip():
+        user_req_section = f"""
+
+USER'S SPECIFIC REQUIREMENTS FOR THIS REGENERATION:
+{user_requirements}
+
+You MUST incorporate these requirements into the regenerated content. They take priority over generic generation."""
+
+    if regen_type == 'epic':
+        return f"""You are a senior software architect. Regenerate a DIFFERENT version of this epic for the following project.
+Generate a fresh take with different user stories, acceptance criteria, and test cases.
+
+PROJECT DESCRIPTION:
+{project_description}
+
+The epic should cover this feature area: {epic_title}
+Previous description was: {epic_description}
+{user_req_section}
+Generate a COMPLETELY NEW version with different details. Use Epic ID {epic_id}.
+Each epic must have 2 user stories. Follow this EXACT plain text format:
+
+Epic {epic_id}: [New Specific Title]
+Description: As a [role], I want [capability] so that [benefit]
+
+User Story {epic_id}-US1: [Feature Title]
+Description: As a [role], I want [feature] so that [benefit]
+Story Points: [1-13]
+Acceptance Criteria: Given [context], When [action], Then [result]
+
+Test Case ID: {epic_id}-US1-TC1
+Test Case Description: Verify that [functionality] works
+Input:
+  - Preconditions: [requirements]
+  - Test Data: [examples]
+  - User Action: [action]
+Expected Result:
+1. [Specific result]
+2. [Specific result]
+3. [Specific result]
+4. [Specific result]
+5. [Specific result]
+6. [Specific result]
+
+User Story {epic_id}-US2: [Feature Title]
+Description: As a [role], I want [feature] so that [benefit]
+Story Points: [1-13]
+Acceptance Criteria: Given [context], When [action], Then [result]
+
+Test Case ID: {epic_id}-US2-TC1
+Test Case Description: Verify that [functionality] works
+Input:
+  - Preconditions: [requirements]
+  - Test Data: [examples]
+  - User Action: [action]
+Expected Result:
+1. [Specific result]
+2. [Specific result]
+3. [Specific result]
+4. [Specific result]
+5. [Specific result]
+6. [Specific result]"""
+
+    elif regen_type == 'story':
+        return f"""You are a senior software architect. Generate a NEW user story for the following project and epic.
+
+PROJECT DESCRIPTION:
+{project_description}
+
+EPIC: {epic_title}
+EPIC DESCRIPTION: {epic_description}
+
+Previous story was: {story_title} - {story_description}
+{user_req_section}
+Generate a COMPLETELY DIFFERENT user story. Use Story ID {story_id}. Follow this EXACT plain text format:
+
+User Story {story_id}: [New Specific Feature Title]
+Description: As a [specific role], I want [specific feature] so that [specific benefit]
+Story Points: [1-13]
+Acceptance Criteria: Given [specific context], When [specific action], Then [specific expected behavior]
+
+Test Case ID: {story_id}-TC1
+Test Case Description: Verify that [specific functionality] works correctly
+Input:
+  - Preconditions: [specific requirements]
+  - Test Data: [specific examples]
+  - User Action: [specific action]
+Expected Result:
+1. [Specific outcome]
+2. [Specific validation]
+3. [Specific UI behavior]
+4. [Specific data persistence]
+5. [Specific error handling]
+6. [Specific completion state]"""
+
+    elif regen_type == 'acceptance_criteria':
+        return f"""You are a senior software architect. Generate NEW acceptance criteria for this user story.
+
+PROJECT DESCRIPTION:
+{project_description}
+
+EPIC: {epic_title}
+USER STORY: {story_title}
+STORY DESCRIPTION: {story_description}
+{user_req_section}
+Generate DIFFERENT, SPECIFIC acceptance criteria using Given/When/Then format.
+Return ONLY the acceptance criteria text, nothing else. Be specific to the project.
+Format: Given [specific precondition], When [specific user action], Then [specific expected outcome with metrics]"""
+
+    elif regen_type == 'test_case':
+        tc_id = context.get('test_case_id', f'{story_id}-TC1')
+        tc_description = context.get('test_case_description', '')
+
+        return f"""You are a senior QA engineer. Generate a NEW test case for this user story.
+
+PROJECT DESCRIPTION:
+{project_description}
+
+EPIC: {epic_title}
+USER STORY: {story_title}
+STORY DESCRIPTION: {story_description}
+
+Previous test case was: {tc_description}
+{user_req_section}
+Generate a COMPLETELY DIFFERENT test case. Use Test Case ID {tc_id}. Follow this EXACT format:
+
+Test Case ID: {tc_id}
+Test Case Description: Verify that [new specific functionality] works correctly
+Input:
+  - Preconditions: [specific requirements]
+  - Test Data: [specific examples]
+  - User Action: [specific action]
+Expected Result:
+1. [Specific outcome with metrics]
+2. [Specific validation]
+3. [Specific UI behavior]
+4. [Specific data persistence]
+5. [Specific error handling]
+6. [Specific completion state]"""
+
+    return ""
+
+
+def _parse_single_story(text: str, _epic_id: str) -> dict:
+    """Parse a single regenerated user story from text."""
+    import re
+
+    story_data = {
+        "story_id": "",
+        "story_title": "",
+        "story_description": "",
+        "story_points": "",
+        "acceptance_criteria": "",
+        "test_cases": []
+    }
+
+    story_match = re.search(r'User Story\s+(E\d+-US\d+):\s*([^\n]+)', text, re.IGNORECASE)
+    if story_match:
+        story_data["story_id"] = story_match.group(1)
+        story_data["story_title"] = story_match.group(2).strip()
+
+    story_desc_match = re.search(r'User Story.*?Description:\s*([^\n]+(?:\n(?!Story Points|Acceptance|Test Case)[^\n]+)*)', text, re.DOTALL | re.IGNORECASE)
+    if story_desc_match:
+        story_data["story_description"] = story_desc_match.group(1).strip()
+
+    points_match = re.search(r'Story Points:\s*(\d+)', text, re.IGNORECASE)
+    if points_match:
+        story_data["story_points"] = points_match.group(1)
+
+    ac_match = re.search(r'Acceptance Criteria:\s*([^\n]+(?:\n(?!Test Case|User Story|Epic)[^\n]+)*)', text, re.DOTALL | re.IGNORECASE)
+    if ac_match:
+        story_data["acceptance_criteria"] = ac_match.group(1).strip()
+
+    test_sections = re.findall(
+        r'Test Case ID:\s*(E\d+-US\d+-TC\d+)\s*Test Case Description:\s*([^\n]+).*?Expected Result:\s*(.+?)(?=Test Case ID:|User Story|Epic E\d+|$)',
+        text, re.DOTALL | re.IGNORECASE
+    )
+    for tc_match in test_sections:
+        test_data = {
+            "test_case_id": tc_match[0],
+            "test_case_description": tc_match[1].strip(),
+            "expected_results": []
+        }
+        expected_text = tc_match[2].strip()
+        numbered_items = re.findall(r'(\d+)\.\s*([^\n]+(?:\n(?!\d+\.)[^\n]+)*)', expected_text)
+        test_data["expected_results"] = [item[1].strip() for item in numbered_items]
+        story_data["test_cases"].append(test_data)
+
+    return story_data
+
+
+def _parse_acceptance_criteria(text: str) -> str:
+    """Parse regenerated acceptance criteria from text."""
+    import re
+
+    ac_match = re.search(r'Acceptance Criteria:\s*(.+)', text, re.DOTALL | re.IGNORECASE)
+    if ac_match:
+        return ac_match.group(1).strip()
+
+    # If no explicit label, return the whole text (it was asked for AC only)
+    return text.strip()
+
+
+def _parse_single_test_case(text: str, story_id: str) -> dict:
+    """Parse a single regenerated test case from text."""
+    import re
+
+    tc_data = {
+        "test_case_id": "",
+        "test_case_description": "",
+        "expected_results": []
+    }
+
+    tc_id_match = re.search(r'Test Case ID:\s*(E\d+-US\d+-TC\d+)', text, re.IGNORECASE)
+    if tc_id_match:
+        tc_data["test_case_id"] = tc_id_match.group(1)
+    else:
+        tc_data["test_case_id"] = f"{story_id}-TC1"
+
+    tc_desc_match = re.search(r'Test Case Description:\s*([^\n]+)', text, re.IGNORECASE)
+    if tc_desc_match:
+        tc_data["test_case_description"] = tc_desc_match.group(1).strip()
+
+    expected_section = re.search(r'Expected Result(?:s)?:\s*(.+?)(?=Test Case ID:|$)', text, re.DOTALL | re.IGNORECASE)
+    if expected_section:
+        expected_text = expected_section.group(1).strip()
+        numbered_items = re.findall(r'(\d+)\.\s*([^\n]+(?:\n(?!\d+\.)[^\n]+)*)', expected_text)
+        tc_data["expected_results"] = [item[1].strip() for item in numbered_items]
+
+    return tc_data
+
+
+@app.route('/api/classify', methods=['POST'])
+def classify_epic():
+    """
+    API endpoint to classify an epic type using Gemini API
+
+    Request JSON:
+    {
+        "epic_title": "Epic title here",
+        "epic_description": "Epic description here"
+    }
+
+    Response JSON:
+    {
+        "success": true,
+        "category": "Frontend Development"
+    }
+    """
+    try:
+        data = request.get_json()
+        epic_title = data.get('epic_title', '').strip()
+        epic_description = data.get('epic_description', '').strip()
+
+        if not epic_title and not epic_description:
+            return jsonify({
+                'success': False,
+                'error': 'Please provide epic_title or epic_description'
+            }), 400
+
+        if not gemini_generator:
+            return jsonify({
+                'success': False,
+                'error': 'Gemini API not available'
+            }), 503
+
+        # Use Gemini to classify the epic
+        classification_prompt = f"""Classify this epic into ONE of these categories:
+- Mobile Development
+- Frontend Development
+- Backend Development
+- DevOps/Infrastructure
+- Data Science/ML
+- Database/SQL
+- Game Development
+- Full Stack
+
+Epic Title: {epic_title}
+Epic Description: {epic_description}
+
+Return ONLY the category name, nothing else."""
+
+        try:
+            # Use the gemini generator's internal method
+            response = gemini_generator.model.generate_content(classification_prompt)
+            category = response.text.strip()
+
+            # Validate the category
+            valid_categories = [
+                "Mobile Development", "Frontend Development", "Backend Development",
+                "DevOps/Infrastructure", "Data Science/ML", "Database/SQL",
+                "Game Development", "Full Stack"
+            ]
+
+            if category not in valid_categories:
+                # Default to Full Stack if classification is unclear
+                category = "Full Stack"
+
+            return jsonify({
+                'success': True,
+                'category': category
+            })
+
+        except Exception as e:
+            print(f"[ERROR] Gemini classification failed: {e}")
+            sys.stdout.flush()
+            return jsonify({
+                'success': False,
+                'error': 'Classification failed'
+            }), 500
+
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
 
 
 if __name__ == '__main__':

@@ -1,6 +1,3 @@
-"""
-Analyze all CSV files to understand the data structure and quality
-"""
 
 import pandas as pd
 import os

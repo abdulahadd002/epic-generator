@@ -1,7 +1,4 @@
-"""
-Retrain T5 Model using collected Gemini API outputs
-This script fine-tunes the T5 model on data collected from Gemini generations
-"""
+
 import os
 import sys
 from datetime import datetime

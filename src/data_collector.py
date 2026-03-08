@@ -1,7 +1,4 @@
-"""
-Data Collector for T5 Model Training
-Collects Gemini API outputs to create training data for T5 model
-"""
+
 import json
 import os
 from datetime import datetime

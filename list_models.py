@@ -1,6 +1,4 @@
-"""
-List available Gemini models for the API key
-"""
+
 import google.generativeai as genai
 import os
 

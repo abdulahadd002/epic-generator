@@ -85,7 +85,7 @@ class GeminiEpicGenerator:
     ) -> str:
         """Build the prompt for Gemini API - generates specific, detailed documentation"""
 
-        prompt = f"""You are a senior software architect creating comprehensive, SPECIFIC project documentation.
+        prompt = f"""You are a senior software architect creating comprehensive, SPECIFIC project documentation following a structured engineering format.
 
 CRITICAL INSTRUCTIONS:
 - Read the ENTIRE project description carefully and ANALYZE all features mentioned
@@ -94,7 +94,7 @@ CRITICAL INSTRUCTIONS:
 - Generate SPECIFIC, DETAILED content based on the ACTUAL requirements provided
 - DO NOT use generic placeholders or vague descriptions
 - Every Epic, User Story, and Test Case must be directly relevant to the project description
-- Use actual feature names, specific metrics, and concrete acceptance criteria from the description
+- Include MEASURABLE METRICS in all acceptance criteria and expected results (e.g., "within 2 seconds", "at least 99.5%", "every 500 milliseconds", "within 3 meters")
 
 ANALYSIS INSTRUCTIONS:
 1. Identify {num_epics} major feature categories from the project description
@@ -108,36 +108,35 @@ PROJECT DESCRIPTION:
 
 Generate {num_epics} comprehensive EPICs (E1 through E{num_epics}), each representing a DIFFERENT major feature area.
 Each Epic must have {num_stories_per_epic} detailed USER STORIES.
+Each User Story must have exactly 1 Test Case.
 Output must follow this EXACT format (plain text, not markdown):
 
 Epic E[number]: [Specific Title Based on Project Description]
-Description: As a [specific stakeholder role from project], I want [specific high-level capability mentioned in project] so that [actual business value from requirements]
+Description: As a [specific stakeholder role], I want [specific high-level capability from project] so that [actual business value from requirements]
 
-User Story E[epic#]-US[story#]: [Specific Feature Title from Project]
-Description: As a [specific user role from project], I want [exact feature from project description] so that [actual user benefit from requirements]
-Story Points: [Appropriate number based on complexity: 1-13]
-Acceptance Criteria: Given [specific initial context from project], When [specific action from requirements], Then [specific expected behavior with metrics from project]
+User Story E[epic#]-US[story#]: [Specific Feature Title]
+Description: As a [specific user role], I want [exact feature from project description] so that [actual user benefit]
+Story Points: [1-13 based on complexity]
+Acceptance Criteria: Given [specific precondition with measurable context, e.g., "the user has an active session and GPS accuracy is within 2 meters"], When [specific user action from requirements], Then [specific expected outcome with measurable metrics, e.g., "the system updates the display within 200 milliseconds and logs the event with timestamp accuracy of 1 second"]
 
 Test Case ID: E[epic#]-US[story#]-TC1
 Test Case Description: Verify that [specific functionality from project description] works as specified
 Input:
-  - Preconditions: [Specific system requirements from project description]
-  - Test Data: [Actual data examples relevant to the feature]
-  - User Action: [Specific action from project requirements]
+  - Preconditions: [Specific system state and requirements that must be met before testing, e.g., "System is powered on, user is authenticated, database connection is active"]
+  - Test Data: [Concrete data examples relevant to the feature, e.g., "Username: testuser@example.com, Workout: Running, Duration: 30 min, Distance: 5km"]
+  - User Action: [Specific step-by-step action the tester performs, e.g., "Navigate to workout log, select 'Running', enter duration and distance, tap 'Save'"]
 Expected Result:
-1. [Specific outcome with actual metrics from project - e.g., "User registration completes within 2 seconds"]
-2. [Specific validation based on project - e.g., "Dashboard displays user's daily calorie intake of 2000 calories"]
-3. [Specific UI behavior from requirements - e.g., "Success notification appears with message: 'Workout logged successfully'"]
-4. [Specific data persistence requirement - e.g., "Workout entry saved to database with timestamp, duration, and calories burned"]
-5. [Specific error handling from project - e.g., "If network fails, display: 'Unable to sync. Data saved locally'"]
-6. [Specific completion state - e.g., "User redirected to dashboard showing updated statistics"]
+1. [Specific outcome with measurable metric - e.g., "Workout entry is saved to database within 2 seconds with all fields populated"]
+2. [Specific validation - e.g., "Calorie calculation displays 320 kcal based on activity type, duration, and user weight"]
+3. [Specific UI behavior - e.g., "Success toast notification appears for 3 seconds with message 'Workout logged successfully'"]
+4. [Specific data persistence - e.g., "Workout history page shows the new entry with correct date, duration (30 min), and distance (5km)"]
 
 EXAMPLE OF GOOD (SPECIFIC) vs BAD (GENERIC):
-BAD: "System accepts input and validates format within 500ms"
-GOOD: "Fitness app accepts workout log entry (exercise type, duration, calories) and validates all fields are filled within 300ms"
+BAD: "Given a user is on the page, When they click submit, Then it works"
+GOOD: "Given the user has entered valid GPS coordinates with accuracy within 2 meters and battery level is above 10%, When the user taps 'Start Tracking', Then the system begins recording position data every 500 milliseconds and displays real-time speed within 200ms latency"
 
-BAD: "As a user, I want to log data"
-GOOD: "As a fitness app user, I want to log my cardio workout (running, duration: 30 minutes, calories: 350) so that I can track my daily calorie burn progress"
+BAD: "Preconditions: System is ready"
+GOOD: "Preconditions: Vehicle control system is powered on with firmware v2.1+, GPS module has acquired satellite lock (minimum 4 satellites), obstacle detection sensors are calibrated within the last 24 hours"
 
 Now generate the documentation using ONLY specific details from the project description above:"""
 

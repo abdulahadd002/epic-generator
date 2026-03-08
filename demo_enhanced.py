@@ -19,13 +19,13 @@ def demo():
 
     # ========== T5 MODEL ==========
     print("\n" + "="*80)
-    print("METHOD 1: T5 MODEL (Fast, Free, Basic)")
+    print("METHOD 1: T5 MODEL")
     print("="*80)
     print("\nLoading T5 model...")
 
     t5_generator = EpicStoryGenerator()
 
-    print("Generating (takes 1-2 seconds)...")
+    print("Generating (takes 60-120 seconds)...")
     t5_result = t5_generator.generate_and_parse(project_description)
 
     print("\n--- T5 Model Output ---")

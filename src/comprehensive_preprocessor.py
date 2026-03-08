@@ -1,6 +1,6 @@
 """
 Comprehensive Data Preprocessor for T5 Model
-Generates training data in the detailed format matching the Autonomous Solar Vehicle PDF
+Generates training data in the detailed format
 """
 
 import pandas as pd

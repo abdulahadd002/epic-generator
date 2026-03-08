@@ -3,18 +3,9 @@ Flask Web Application for Epic/Story Generator
 Run this to start a web interface for your AI model
 """
 
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, request, jsonify
 from flask_cors import CORS
-# Only import modules we actually use (Gemini API mode)
-try:
-    from src.inference import EpicStoryGenerator
-except ImportError:
-    EpicStoryGenerator = None  # T5 model not available
 from src.gemini_generator import GeminiEpicGenerator
-try:
-    from src.data_collector import TrainingDataCollector
-except ImportError:
-    TrainingDataCollector = None  # Data collector not available
 import os
 import sys
 
@@ -39,7 +30,7 @@ print("INITIALIZING AI GENERATORS")
 print("="*80)
 
 # Initialize Gemini API generator (primary)
-print("\n[1/2] Initializing Google Gemini API Generator...")
+print("\nInitializing Google Gemini API Generator...")
 try:
     gemini_generator = GeminiEpicGenerator(api_key=GEMINI_API_KEY)
     print("[SUCCESS] Gemini API Generator ready!")
@@ -47,77 +38,27 @@ except Exception as e:
     print(f"[ERROR] Gemini API initialization failed: {e}")
     gemini_generator = None
 
-# Initialize T5 model (DISABLED for testing Gemini API only)
-print("\n[2/2] T5 Model (DISABLED - Testing Gemini API only)...")
-t5_generator = None
-print("[INFO] T5 Model disabled - Gemini API exclusive mode")
-
-# Initialize Training Data Collector
-print("\n[3/3] Initializing Training Data Collector...")
-if TrainingDataCollector:
-    try:
-        data_collector = TrainingDataCollector()
-        stats = data_collector.get_stats()
-        print(f"[SUCCESS] Data Collector ready! ({stats['total_examples']} examples collected)")
-    except Exception as e:
-        print(f"[ERROR] Data Collector initialization failed: {e}")
-        data_collector = None
-else:
-    print("[INFO] Data Collector not available (torch not installed)")
-    data_collector = None
-
 print("\n" + "="*80)
 print("GENERATOR STATUS:")
-print(f"  Gemini API (Primary):  {'[READY]' if gemini_generator else '[UNAVAILABLE]'}")
-print(f"  T5 Model (Fallback):   [DISABLED for testing]")
-print(f"  Data Collector:        {'[READY]' if data_collector else '[UNAVAILABLE]'}")
+print(f"  Gemini API:  {'[READY]' if gemini_generator else '[UNAVAILABLE]'}")
 print("="*80)
 print("\nWeb server starting...")
 
 
-def reformat_model_output(raw_text: str, description: str) -> str:
-    """
-    Reformat raw model output into proper comprehensive format
-    matching the Autonomous Solar Vehicle PDF structure
-    """
+def _strip_markdown(text: str) -> str:
+    """Strip markdown formatting from LLM output so regex parsers work correctly."""
     import re
-
-    # Generate structured IDs
-    epic_id = "E1"
-    story_id = f"{epic_id}-US1"
-    test_id = f"{story_id}-TC1"
-
-    # Extract key phrases from description
-    desc_lower = description.lower()
-
-    # Determine epic title from description
-    epic_title = description[:50] + "..." if len(description) > 50 else description
-    epic_title = epic_title.title()
-
-    # Format output matching PDF structure
-    formatted = f"""Epic {epic_id}: {epic_title}
-Description: As a system administrator, I want to {description.lower()} so that ensure reliable and scalable backend operations
-
-User Story {story_id}: {epic_title}
-Description: As a user, I want to {description.lower()} so that I can accomplish my goals efficiently
-Story Points: 5
-Acceptance Criteria: Given the user has necessary permissions, When the user performs the required input, Then the system should process the request successfully
-
-Test Case ID: {test_id}
-Test Case Description: Verify that {description.lower()} functions correctly
-Input:
-  - Preconditions: System initialized, all services running
-  - Test Data: Valid input matching requirements
-  - User Action: Execute primary function
-Expected Result:
-1. System accepts input and validates format within 500ms
-2. Processing completes successfully with no errors
-3. Expected output displayed with correct data
-4. Success notification shown to user
-5. System state updated correctly in database
-6. Operation logged with timestamp and user details"""
-
-    return formatted
+    # Remove bold/italic markers
+    text = re.sub(r'\*\*\*(.+?)\*\*\*', r'\1', text)
+    text = re.sub(r'\*\*(.+?)\*\*', r'\1', text)
+    text = re.sub(r'\*(.+?)\*', r'\1', text)
+    # Remove heading markers
+    text = re.sub(r'^#{1,6}\s*', '', text, flags=re.MULTILINE)
+    # Remove backtick formatting
+    text = re.sub(r'`([^`]+)`', r'\1', text)
+    # Remove horizontal rules
+    text = re.sub(r'^[-*_]{3,}\s*$', '', text, flags=re.MULTILINE)
+    return text
 
 
 def parse_multiple_epics(text: str) -> dict:
@@ -131,6 +72,9 @@ def parse_multiple_epics(text: str) -> dict:
         "epics": [],
         "raw_text": text
     }
+
+    # Strip markdown formatting before parsing
+    text = _strip_markdown(text)
 
     # Split text by Epic markers to find all epics
     epic_sections = re.split(r'(?=Epic E\d+:)', text)
@@ -201,8 +145,29 @@ def parse_multiple_epics(text: str) -> dict:
                 test_data = {
                     "test_case_id": tc_match[0],
                     "test_case_description": tc_match[1].strip(),
+                    "input_preconditions": "",
+                    "input_test_data": "",
+                    "input_user_action": "",
                     "expected_results": []
                 }
+
+                # Extract Input section fields from the full test case text
+                # Find the text between Test Case Description and Expected Result
+                tc_full = re.search(
+                    r'Test Case ID:\s*' + re.escape(tc_match[0]) + r'.*?Expected Result',
+                    story_section, re.DOTALL | re.IGNORECASE
+                )
+                if tc_full:
+                    tc_text = tc_full.group(0)
+                    pre_match = re.search(r'Preconditions?:\s*([^\n]+(?:\n(?!\s*-\s*(?:Test Data|User Action|Input)|Expected)[^\n]+)*)', tc_text, re.IGNORECASE)
+                    if pre_match:
+                        test_data["input_preconditions"] = pre_match.group(1).strip()
+                    td_match = re.search(r'Test Data:\s*([^\n]+(?:\n(?!\s*-\s*(?:User Action|Precondition)|Expected)[^\n]+)*)', tc_text, re.IGNORECASE)
+                    if td_match:
+                        test_data["input_test_data"] = td_match.group(1).strip()
+                    ua_match = re.search(r'User Action:\s*([^\n]+(?:\n(?!\s*-\s*(?:Precondition|Test Data)|Expected)[^\n]+)*)', tc_text, re.IGNORECASE)
+                    if ua_match:
+                        test_data["input_user_action"] = ua_match.group(1).strip()
 
                 # Parse expected results
                 expected_text = tc_match[2].strip()
@@ -218,132 +183,12 @@ def parse_multiple_epics(text: str) -> dict:
     return result
 
 
-def parse_comprehensive_output(text: str) -> dict:
-    """
-    Parse comprehensive model output with Epic IDs, User Stories, Test Cases
-    Handles both T5 model output and Claude API output formats
-
-    Expected format:
-    Epic E1: Title
-    Description: As a [role], I want [capability] so that [benefit]
-
-    User Story E1-US1: Title
-    Description: As a [role], I want [feature] so that [benefit]
-    Story Points: X
-    Acceptance Criteria: Given... When... Then...
-
-    Test Case ID: E1-US1-TC1
-    Test Case Description: ...
-    Expected Result:
-    1. ...
-    2. ...
-    """
-    import re
-
-    result = {
-        "epic_id": "",
-        "epic_title": "",
-        "epic_description": "",
-        "story_id": "",
-        "story_title": "",
-        "story_description": "",
-        "story_points": "",
-        "acceptance_criteria": "",
-        "test_case_id": "",
-        "test_case_description": "",
-        "expected_results": [],
-        "raw_text": text
-    }
-
-    # Extract Epic ID and Title (handle both plain and markdown bold format)
-    epic_match = re.search(r'(?:\*\*)?Epic\s+(?:ID:\s*)?(E\d+)(?:\*\*)?:\s*(?:\*\*)?([^\n*]+?)(?:\*\*)?(?:\n|$)', text, re.IGNORECASE)
-    if epic_match:
-        result["epic_id"] = epic_match.group(1)
-        result["epic_title"] = epic_match.group(2).strip()
-
-    # Extract Epic Description (more flexible pattern)
-    epic_desc_match = re.search(r'(?:\*\*)?Description(?:\*\*)?:\s*([^\n]+(?:\n(?!User Story|Epic)[^\n]+)*)', text, re.IGNORECASE)
-    if epic_desc_match:
-        result["epic_description"] = epic_desc_match.group(1).strip()
-
-    # Extract User Story ID and Title
-    story_match = re.search(r'(?:\*\*)?User Story\s+(?:ID:\s*)?(E\d+-US\d+)(?:\*\*)?:\s*(?:\*\*)?([^\n*]+?)(?:\*\*)?(?:\n|$)', text, re.IGNORECASE)
-    if story_match:
-        result["story_id"] = story_match.group(1)
-        result["story_title"] = story_match.group(2).strip()
-
-    # Extract User Story Description (after User Story section)
-    story_desc_match = re.search(r'User Story.*?(?:\*\*)?Description(?:\*\*)?:\s*([^\n]+(?:\n(?!Story Points|Acceptance|Test Case|Epic)[^\n]+)*)', text, re.DOTALL | re.IGNORECASE)
-    if story_desc_match:
-        result["story_description"] = story_desc_match.group(1).strip()
-
-    # Extract Story Points
-    points_match = re.search(r'(?:\*\*)?Story Points(?:\*\*)?:\s*(\d+)', text, re.IGNORECASE)
-    if points_match:
-        result["story_points"] = points_match.group(1)
-
-    # Extract Acceptance Criteria (more flexible to capture full content)
-    ac_match = re.search(r'(?:\*\*)?Acceptance Criteria(?:\*\*)?:\s*([^\n]+(?:\n(?!Test Case|User Story|Epic)[^\n]+)*)', text, re.DOTALL | re.IGNORECASE)
-    if ac_match:
-        result["acceptance_criteria"] = ac_match.group(1).strip()
-
-    # Extract Test Case ID
-    tc_id_match = re.search(r'(?:\*\*)?Test Case (?:ID)?(?:\*\*)?:\s*(E\d+-US\d+-TC\d+)', text, re.IGNORECASE)
-    if tc_id_match:
-        result["test_case_id"] = tc_id_match.group(1)
-
-    # Extract Test Case Description
-    tc_desc_match = re.search(r'(?:\*\*)?Test Case Description(?:\*\*)?:\s*([^\n]+)', text, re.IGNORECASE)
-    if tc_desc_match:
-        result["test_case_description"] = tc_desc_match.group(1).strip()
-
-    # Extract Expected Results (numbered list, handle various formats)
-    expected_section = re.search(r'(?:\*\*)?Expected Result(?:s)?(?:\*\*)?:\s*(.+?)(?=\n(?:Epic|User Story|Test Case ID:|$)|\Z)', text, re.DOTALL | re.IGNORECASE)
-    if expected_section:
-        expected_text = expected_section.group(1).strip()
-        # Find numbered items (1. 2. 3. etc), capturing full lines including those that wrap
-        numbered_items = re.findall(r'(\d+)\.\s*([^\n]+(?:\n(?!\d+\.)[^\n]+)*)', expected_text)
-        result["expected_results"] = [item[1].strip() for item in numbered_items]
-
-    return result
-
-
-@app.route('/')
-def home():
-    """Serve the main HTML page"""
-    return render_template('index.html')
-
-
 @app.route('/api/generate', methods=['POST'])
 def generate():
-    """
-    API endpoint to generate epic/story from description using Claude API or T5 model
-
-    Request JSON:
-    {
-        "description": "Your project description here",
-        "use_t5": false  // Optional: force T5 model usage
-    }
-
-    Response JSON:
-    {
-        "success": true,
-        "result": {
-            "epic": "...",
-            "user_story": "...",
-            "story_points": "...",
-            "tasks": [...],
-            "acceptance_criteria": [...]
-        },
-        "raw_output": "...",
-        "generator_used": "Claude API" or "T5 Model"
-    }
-    """
+    """API endpoint to generate epics from a project description using Gemini API."""
     try:
-        # Get description from request
         data = request.get_json()
         description = data.get('description', '').strip()
-        force_t5 = data.get('use_t5', False)
 
         if not description:
             return jsonify({
@@ -351,73 +196,37 @@ def generate():
                 'error': 'Please provide a project description'
             }), 400
 
-        generator_used = None
-        formatted_output = None
+        if not gemini_generator:
+            return jsonify({
+                'success': False,
+                'error': 'Gemini API not available'
+            }), 503
 
-        # Try Gemini API first (unless T5 is explicitly requested)
-        if not force_t5 and gemini_generator:
-            try:
-                print(f"\n[API] Using Gemini API for generation...")
-                sys.stdout.flush()
-                # Generate using Gemini API with quick summary (5 epics, 2 stories each)
-                result = gemini_generator.generate_quick_summary(description)
+        print(f"\n[API] Using Gemini API for generation...")
+        sys.stdout.flush()
 
-                if result.get("success"):
-                    formatted_output = result["raw_output"]
-                    generator_used = "Gemini API"
-                    print(f"[API] [SUCCESS] Gemini API generation successful")
-                    sys.stdout.flush()
+        gen_result = gemini_generator.generate_quick_summary(description)
 
-                    # Save training data for T5 model learning (optional)
-                    if data_collector:
-                        try:
-                            data_collector.save_training_example(
-                                project_description=description,
-                                generated_output=formatted_output,
-                                generator_used="Gemini API"
-                            )
-                            sys.stdout.flush()
-                        except Exception as collector_error:
-                            print(f"[WARNING] Data collector failed (non-critical): {collector_error}")
-                            sys.stdout.flush()
-                else:
-                    print(f"[API] [ERROR] Gemini API generation failed: {result.get('error')}")
-                    sys.stdout.flush()
-                    # Fall back to T5
-                    raise Exception("Gemini API generation failed")
-
-            except Exception as e:
-                print(f"[API] Gemini API error: {e}, falling back to T5 model...")
-                sys.stdout.flush()
-                formatted_output = None
-
-        # T5 model disabled for testing - Gemini API only
-        # Fall back disabled to test Gemini API exclusively
-
-        # If Gemini API failed
-        if formatted_output is None:
-            error_msg = 'Gemini API generation failed. T5 model is disabled for testing. Check server logs.'
-            print(f"[ERROR] {error_msg}")
+        if not gen_result.get("success"):
+            print(f"[API] [ERROR] Gemini API generation failed: {gen_result.get('error')}")
             sys.stdout.flush()
             return jsonify({
                 'success': False,
-                'error': error_msg
+                'error': 'Gemini API generation failed. Check server logs.'
             }), 500
 
-        # Parse comprehensive output
-        # Use multi-epic parser for Gemini API (better format), single-epic for T5
-        if generator_used == "Gemini API":
-            result = parse_multiple_epics(formatted_output)
-        else:
-            # T5 model - use old single-epic parser for compatibility
-            result = parse_comprehensive_output(formatted_output)
+        formatted_output = gen_result["raw_output"]
+        print(f"[API] [SUCCESS] Gemini API generation successful")
+        sys.stdout.flush()
+
+        result = parse_multiple_epics(formatted_output)
 
         # Return results with formatted output
         return jsonify({
             'success': True,
             'result': result,
             'raw_output': formatted_output,
-            'generator_used': generator_used
+            'generator_used': 'Gemini API'
         })
 
     except Exception as e:
@@ -452,8 +261,6 @@ def get_examples():
 @app.route('/api/health', methods=['GET'])
 def health():
     """Health check endpoint"""
-    collector_stats = data_collector.get_stats() if data_collector else {}
-
     return jsonify({
         'success': True,
         'status': 'running',
@@ -462,22 +269,9 @@ def health():
                 'available': gemini_generator is not None,
                 'model': 'Gemini 2.5 Flash',
                 'status': 'Primary Generator' if gemini_generator else 'Unavailable'
-            },
-            't5_model': {
-                'available': t5_generator is not None,
-                'model': 'T5-Small Comprehensive',
-                'parameters': '60.5M',
-                'status': 'Fallback Generator' if t5_generator else 'Unavailable',
-                'model_path': 'd:/epic model/models/comprehensive-model/final'
-            },
-            'data_collector': {
-                'available': data_collector is not None,
-                'status': 'Active - Collecting Training Data' if data_collector else 'Unavailable',
-                'total_examples': collector_stats.get('total_examples', 0),
-                'last_updated': collector_stats.get('last_updated')
             }
         },
-        'primary_generator': 'Gemini API' if gemini_generator else ('T5 Model' if t5_generator else 'None')
+        'primary_generator': 'Gemini API' if gemini_generator else 'None'
     })
 
 
@@ -520,13 +314,20 @@ def regenerate():
 
         prompt = _build_regenerate_prompt(regen_type, project_description, context)
 
-        print(f"\n[API] Regenerating {regen_type}...")
+        user_requirements = context.get('user_requirements', '')
+        print(f"\n{'='*60}")
+        print(f"[API] Regenerating {regen_type}...")
+        print(f"[API] User requirements: '{user_requirements}'" if user_requirements else "[API] User requirements: (none)")
+        print(f"[API] Prompt length: {len(prompt)} chars")
+        print(f"[API] Prompt ends with: ...{prompt[-200:]}")
+        print(f"{'='*60}")
         sys.stdout.flush()
 
         response = gemini_generator.model.generate_content(prompt)
         raw_text = response.text
 
         print(f"[API] [SUCCESS] Regeneration complete for {regen_type}")
+        print(f"[API] Raw output preview: {raw_text[:300]}")
         sys.stdout.flush()
 
         # Parse the regenerated content based on type
@@ -593,26 +394,29 @@ def _build_regenerate_prompt(regen_type: str, project_description: str, context:
     epic_id = context.get('epic_id', 'E1')
     user_requirements = context.get('user_requirements', '')
 
-    # Build user requirements section if provided
+    # Build user requirements section - placed at END of prompt for maximum LLM attention
     user_req_section = ''
     if user_requirements.strip():
         user_req_section = f"""
 
-USER'S SPECIFIC REQUIREMENTS FOR THIS REGENERATION:
-{user_requirements}
+CRITICAL - USER'S SPECIFIC REQUIREMENTS (HIGHEST PRIORITY):
+The user has provided these specific instructions for this regeneration:
+"{user_requirements}"
 
-You MUST incorporate these requirements into the regenerated content. They take priority over generic generation."""
+You MUST tailor the generated content to match these requirements. These instructions override any generic defaults above. Make sure every part of your output directly reflects what the user asked for."""
 
     if regen_type == 'epic':
         return f"""You are a senior software architect. Regenerate a DIFFERENT version of this epic for the following project.
 Generate a fresh take with different user stories, acceptance criteria, and test cases.
+IMPORTANT: Output ONLY plain text. Do NOT use any markdown formatting (no **, no #, no `, no ---).
+IMPORTANT: Include MEASURABLE METRICS in acceptance criteria and expected results (e.g., "within 2 seconds", "at least 99.5%", "every 500ms").
 
 PROJECT DESCRIPTION:
 {project_description}
 
 The epic should cover this feature area: {epic_title}
 Previous description was: {epic_description}
-{user_req_section}
+
 Generate a COMPLETELY NEW version with different details. Use Epic ID {epic_id}.
 Each epic must have 2 user stories. Follow this EXACT plain text format:
 
@@ -622,43 +426,41 @@ Description: As a [role], I want [capability] so that [benefit]
 User Story {epic_id}-US1: [Feature Title]
 Description: As a [role], I want [feature] so that [benefit]
 Story Points: [1-13]
-Acceptance Criteria: Given [context], When [action], Then [result]
+Acceptance Criteria: Given [specific precondition with measurable context], When [specific user action], Then [specific outcome with measurable metrics]
 
 Test Case ID: {epic_id}-US1-TC1
-Test Case Description: Verify that [functionality] works
+Test Case Description: Verify that [specific functionality] works as specified
 Input:
-  - Preconditions: [requirements]
-  - Test Data: [examples]
-  - User Action: [action]
+  - Preconditions: [Specific system state required before testing]
+  - Test Data: [Concrete data examples with actual values]
+  - User Action: [Step-by-step action the tester performs]
 Expected Result:
-1. [Specific result]
-2. [Specific result]
-3. [Specific result]
-4. [Specific result]
-5. [Specific result]
-6. [Specific result]
+1. [Specific outcome with measurable metric]
+2. [Specific validation with expected values]
+3. [Specific UI behavior with timing/display details]
+4. [Specific data persistence verification]
 
 User Story {epic_id}-US2: [Feature Title]
 Description: As a [role], I want [feature] so that [benefit]
 Story Points: [1-13]
-Acceptance Criteria: Given [context], When [action], Then [result]
+Acceptance Criteria: Given [specific precondition with measurable context], When [specific user action], Then [specific outcome with measurable metrics]
 
 Test Case ID: {epic_id}-US2-TC1
-Test Case Description: Verify that [functionality] works
+Test Case Description: Verify that [specific functionality] works as specified
 Input:
-  - Preconditions: [requirements]
-  - Test Data: [examples]
-  - User Action: [action]
+  - Preconditions: [Specific system state required before testing]
+  - Test Data: [Concrete data examples with actual values]
+  - User Action: [Step-by-step action the tester performs]
 Expected Result:
-1. [Specific result]
-2. [Specific result]
-3. [Specific result]
-4. [Specific result]
-5. [Specific result]
-6. [Specific result]"""
+1. [Specific outcome with measurable metric]
+2. [Specific validation with expected values]
+3. [Specific UI behavior with timing/display details]
+4. [Specific data persistence verification]{user_req_section}"""
 
     elif regen_type == 'story':
         return f"""You are a senior software architect. Generate a NEW user story for the following project and epic.
+IMPORTANT: Output ONLY plain text. Do NOT use any markdown formatting (no **, no #, no `, no ---).
+IMPORTANT: Include MEASURABLE METRICS in acceptance criteria and expected results (e.g., "within 2 seconds", "at least 99.5%", "every 500ms").
 
 PROJECT DESCRIPTION:
 {project_description}
@@ -667,30 +469,31 @@ EPIC: {epic_title}
 EPIC DESCRIPTION: {epic_description}
 
 Previous story was: {story_title} - {story_description}
-{user_req_section}
+
 Generate a COMPLETELY DIFFERENT user story. Use Story ID {story_id}. Follow this EXACT plain text format:
 
 User Story {story_id}: [New Specific Feature Title]
 Description: As a [specific role], I want [specific feature] so that [specific benefit]
 Story Points: [1-13]
-Acceptance Criteria: Given [specific context], When [specific action], Then [specific expected behavior]
+Acceptance Criteria: Given [specific precondition with measurable context], When [specific user action], Then [specific outcome with measurable metrics]
 
 Test Case ID: {story_id}-TC1
-Test Case Description: Verify that [specific functionality] works correctly
+Test Case Description: Verify that [specific functionality] works as specified
 Input:
-  - Preconditions: [specific requirements]
-  - Test Data: [specific examples]
-  - User Action: [specific action]
+  - Preconditions: [Specific system state required before testing]
+  - Test Data: [Concrete data examples with actual values]
+  - User Action: [Step-by-step action the tester performs]
 Expected Result:
-1. [Specific outcome]
-2. [Specific validation]
-3. [Specific UI behavior]
-4. [Specific data persistence]
-5. [Specific error handling]
-6. [Specific completion state]"""
+1. [Specific outcome with measurable metric]
+2. [Specific validation with expected values]
+3. [Specific UI behavior with timing/display details]
+4. [Specific data persistence verification]{user_req_section}"""
 
     elif regen_type == 'acceptance_criteria':
-        return f"""You are a senior software architect. Generate NEW acceptance criteria for this user story.
+        return f"""You are a senior software architect. Generate exactly 3 NEW acceptance criteria for this user story.
+IMPORTANT: Output ONLY plain text. Do NOT use any markdown formatting (no **, no #, no `, no ---).
+IMPORTANT: Generate EXACTLY 3 acceptance criteria. No more, no less. Do NOT repeat or duplicate criteria.
+IMPORTANT: Include MEASURABLE METRICS in each criterion (e.g., "within 2 seconds", "accuracy of 99.5%", "every 500 milliseconds", "within 3 meters").
 
 PROJECT DESCRIPTION:
 {project_description}
@@ -698,16 +501,27 @@ PROJECT DESCRIPTION:
 EPIC: {epic_title}
 USER STORY: {story_title}
 STORY DESCRIPTION: {story_description}
-{user_req_section}
-Generate DIFFERENT, SPECIFIC acceptance criteria using Given/When/Then format.
-Return ONLY the acceptance criteria text, nothing else. Be specific to the project.
-Format: Given [specific precondition], When [specific user action], Then [specific expected outcome with metrics]"""
+
+Generate 3 DIFFERENT, SPECIFIC acceptance criteria using Given/When/Then format.
+Each criterion must cover a DIFFERENT aspect of the story. Do NOT repeat similar scenarios.
+Each criterion MUST include at least one measurable metric (time, percentage, distance, count, etc.).
+Return ONLY the 3 criteria, nothing else. No headers, no labels, no numbering prefix.
+
+Format each criterion exactly like this (one blank line between each):
+
+Given [specific precondition with measurable context], When [specific user action], Then [specific expected outcome with measurable metric]
+
+Given [different precondition with measurable context], When [different action], Then [different outcome with measurable metric]
+
+Given [another precondition with measurable context], When [another action], Then [another outcome with measurable metric]{user_req_section}"""
 
     elif regen_type == 'test_case':
         tc_id = context.get('test_case_id', f'{story_id}-TC1')
         tc_description = context.get('test_case_description', '')
 
         return f"""You are a senior QA engineer. Generate a NEW test case for this user story.
+IMPORTANT: Output ONLY plain text. Do NOT use any markdown formatting (no **, no #, no `, no ---).
+IMPORTANT: Include MEASURABLE METRICS in expected results (e.g., "within 2 seconds", "at least 99.5%", "displays 320 kcal").
 
 PROJECT DESCRIPTION:
 {project_description}
@@ -717,22 +531,20 @@ USER STORY: {story_title}
 STORY DESCRIPTION: {story_description}
 
 Previous test case was: {tc_description}
-{user_req_section}
+
 Generate a COMPLETELY DIFFERENT test case. Use Test Case ID {tc_id}. Follow this EXACT format:
 
 Test Case ID: {tc_id}
-Test Case Description: Verify that [new specific functionality] works correctly
+Test Case Description: Verify that [specific functionality from the user story] works as specified
 Input:
-  - Preconditions: [specific requirements]
-  - Test Data: [specific examples]
-  - User Action: [specific action]
+  - Preconditions: [Specific system state and requirements that must be met before testing]
+  - Test Data: [Concrete data examples with actual values relevant to the feature]
+  - User Action: [Step-by-step action the tester performs]
 Expected Result:
-1. [Specific outcome with metrics]
-2. [Specific validation]
-3. [Specific UI behavior]
-4. [Specific data persistence]
-5. [Specific error handling]
-6. [Specific completion state]"""
+1. [Specific outcome with measurable metric]
+2. [Specific validation with expected values]
+3. [Specific UI behavior with timing/display details]
+4. [Specific data persistence verification]{user_req_section}"""
 
     return ""
 
@@ -740,6 +552,8 @@ Expected Result:
 def _parse_single_story(text: str, _epic_id: str) -> dict:
     """Parse a single regenerated user story from text."""
     import re
+
+    text = _strip_markdown(text)
 
     story_data = {
         "story_id": "",
@@ -775,8 +589,28 @@ def _parse_single_story(text: str, _epic_id: str) -> dict:
         test_data = {
             "test_case_id": tc_match[0],
             "test_case_description": tc_match[1].strip(),
+            "input_preconditions": "",
+            "input_test_data": "",
+            "input_user_action": "",
             "expected_results": []
         }
+        # Extract Input section fields
+        tc_full = re.search(
+            r'Test Case ID:\s*' + re.escape(tc_match[0]) + r'.*?Expected Result',
+            text, re.DOTALL | re.IGNORECASE
+        )
+        if tc_full:
+            tc_text = tc_full.group(0)
+            pre_m = re.search(r'Preconditions?:\s*([^\n]+(?:\n(?!\s*-\s*(?:Test Data|User Action|Input)|Expected)[^\n]+)*)', tc_text, re.IGNORECASE)
+            if pre_m:
+                test_data["input_preconditions"] = pre_m.group(1).strip()
+            td_m = re.search(r'Test Data:\s*([^\n]+(?:\n(?!\s*-\s*(?:User Action|Precondition)|Expected)[^\n]+)*)', tc_text, re.IGNORECASE)
+            if td_m:
+                test_data["input_test_data"] = td_m.group(1).strip()
+            ua_m = re.search(r'User Action:\s*([^\n]+(?:\n(?!\s*-\s*(?:Precondition|Test Data)|Expected)[^\n]+)*)', tc_text, re.IGNORECASE)
+            if ua_m:
+                test_data["input_user_action"] = ua_m.group(1).strip()
+
         expected_text = tc_match[2].strip()
         numbered_items = re.findall(r'(\d+)\.\s*([^\n]+(?:\n(?!\d+\.)[^\n]+)*)', expected_text)
         test_data["expected_results"] = [item[1].strip() for item in numbered_items]
@@ -786,24 +620,49 @@ def _parse_single_story(text: str, _epic_id: str) -> dict:
 
 
 def _parse_acceptance_criteria(text: str) -> str:
-    """Parse regenerated acceptance criteria from text."""
+    """Parse regenerated acceptance criteria from text. Limits to first 5 Given/When/Then blocks."""
     import re
 
+    text = _strip_markdown(text)
+
+    # Strip any leading label the LLM may have added
     ac_match = re.search(r'Acceptance Criteria:\s*(.+)', text, re.DOTALL | re.IGNORECASE)
     if ac_match:
-        return ac_match.group(1).strip()
+        text = ac_match.group(1).strip()
 
-    # If no explicit label, return the whole text (it was asked for AC only)
-    return text.strip()
+    # Extract individual Given/When/Then blocks (up to 5) to prevent repetition
+    blocks = re.findall(
+        r'(Given\s.+?Then\s[^\n]+(?:\n(?!Given\s)[^\n]+)*)',
+        text, re.DOTALL | re.IGNORECASE
+    )
+
+    if blocks:
+        # Deduplicate: keep only blocks with unique first 60 chars
+        seen = set()
+        unique = []
+        for b in blocks:
+            key = b.strip()[:60].lower()
+            if key not in seen:
+                seen.add(key)
+                unique.append(b.strip())
+        return '\n\n'.join(unique[:5])
+
+    # Fallback: return the raw text but cap at ~2000 chars to prevent bloat
+    return text.strip()[:2000]
 
 
 def _parse_single_test_case(text: str, story_id: str) -> dict:
     """Parse a single regenerated test case from text."""
     import re
 
+    text = _strip_markdown(text)
+
     tc_data = {
         "test_case_id": "",
         "test_case_description": "",
+        "input_preconditions": "",
+        "input_test_data": "",
+        "input_user_action": "",
         "expected_results": []
     }
 
@@ -816,6 +675,17 @@ def _parse_single_test_case(text: str, story_id: str) -> dict:
     tc_desc_match = re.search(r'Test Case Description:\s*([^\n]+)', text, re.IGNORECASE)
     if tc_desc_match:
         tc_data["test_case_description"] = tc_desc_match.group(1).strip()
+
+    # Parse Input section
+    pre_match = re.search(r'Preconditions?:\s*([^\n]+(?:\n(?!\s*-\s*(?:Test Data|User Action|Input)|Expected)[^\n]+)*)', text, re.IGNORECASE)
+    if pre_match:
+        tc_data["input_preconditions"] = pre_match.group(1).strip()
+    td_match = re.search(r'Test Data:\s*([^\n]+(?:\n(?!\s*-\s*(?:User Action|Precondition)|Expected)[^\n]+)*)', text, re.IGNORECASE)
+    if td_match:
+        tc_data["input_test_data"] = td_match.group(1).strip()
+    ua_match = re.search(r'User Action:\s*([^\n]+(?:\n(?!\s*-\s*(?:Precondition|Test Data)|Expected)[^\n]+)*)', text, re.IGNORECASE)
+    if ua_match:
+        tc_data["input_user_action"] = ua_match.group(1).strip()
 
     expected_section = re.search(r'Expected Result(?:s)?:\s*(.+?)(?=Test Case ID:|$)', text, re.DOTALL | re.IGNORECASE)
     if expected_section:
@@ -913,10 +783,6 @@ Return ONLY the category name, nothing else."""
 
 
 if __name__ == '__main__':
-    # Create templates directory if it doesn't exist
-    os.makedirs('templates', exist_ok=True)
-    os.makedirs('static', exist_ok=True)
-
     print("\n" + "="*80)
     print("EPIC/STORY GENERATOR WEB APP")
     print("="*80)
@@ -925,4 +791,4 @@ if __name__ == '__main__':
     print("\n" + "="*80 + "\n")
 
     # Run the Flask app
-    app.run(debug=True, host='0.0.0.0', port=5000, use_reloader=False)
+    app.run(debug=True, host='0.0.0.0', port=5000, use_reloader=True)

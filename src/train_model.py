@@ -141,29 +141,54 @@ class EpicStoryTrainer:
         # Create output directory
         Path(output_dir).mkdir(parents=True, exist_ok=True)
 
+        # Auto-calculate eval/save steps for small datasets
+        grad_accum = 2
+        steps_per_epoch = max(1, len(train_dataset) // (batch_size * grad_accum))
+        total_steps = steps_per_epoch * num_epochs
+
+        # Use epoch-based eval/save for small datasets, step-based for large
+        if total_steps < save_steps:
+            eval_strategy = "epoch"
+            save_strategy = "epoch"
+            eval_steps_val = None
+            save_steps_val = None
+            logging_steps = max(1, steps_per_epoch)
+            warmup_steps = min(50, total_steps // 3)
+        else:
+            eval_strategy = "steps"
+            save_strategy = "steps"
+            eval_steps_val = save_steps
+            save_steps_val = save_steps
+            logging_steps = 100
+            warmup_steps = 500
+
         # Training arguments (ML hyperparameters)
-        training_args = TrainingArguments(
+        training_args_kwargs = dict(
             output_dir=output_dir,
-            eval_strategy="steps",
-            eval_steps=500,
-            save_steps=save_steps,
+            eval_strategy=eval_strategy,
+            save_strategy=save_strategy,
             learning_rate=learning_rate,
             per_device_train_batch_size=batch_size,
             per_device_eval_batch_size=batch_size,
             num_train_epochs=num_epochs,
             weight_decay=0.01,
             save_total_limit=3,
-            fp16=torch.cuda.is_available(),  # Use mixed precision on GPU
+            fp16=torch.cuda.is_available(),
             logging_dir=f"{output_dir}/logs",
-            logging_steps=100,
+            logging_steps=logging_steps,
             load_best_model_at_end=True,
             metric_for_best_model="eval_loss",
             greater_is_better=False,
             push_to_hub=False,
-            report_to=["none"],  # Disable wandb
-            warmup_steps=500,
-            gradient_accumulation_steps=2,  # Effective batch size = 8
+            report_to=["none"],
+            warmup_steps=warmup_steps,
+            gradient_accumulation_steps=grad_accum,
         )
+        if eval_steps_val is not None:
+            training_args_kwargs["eval_steps"] = eval_steps_val
+            training_args_kwargs["save_steps"] = save_steps_val
+
+        training_args = TrainingArguments(**training_args_kwargs)
 
         # Data collator for dynamic padding
         data_collator = DataCollatorForSeq2Seq(

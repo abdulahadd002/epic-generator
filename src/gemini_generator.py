@@ -89,15 +89,22 @@ class GeminiEpicGenerator:
 
 CRITICAL INSTRUCTIONS:
 - Read the ENTIRE project description carefully and ANALYZE all features mentioned
-- BREAK DOWN the project into {num_epics} DISTINCT major feature areas (Epics)
+- Group related features into DISTINCT major feature areas (Epics)
+- You should generate between 3 and 10 Epics depending on the project scope — DO NOT always generate the same number
 - Each Epic must represent a DIFFERENT major system capability
+- Each Epic should have between 1 and 5 User Stories depending on the complexity of that feature area:
+  - Simple features (e.g., a settings page, a logout button): 1 story
+  - Medium features (e.g., user profile, notifications): 2-3 stories
+  - Complex features (e.g., real-time dashboard, payment processing, AI recommendations): 4-5 stories
+- The total number of stories should be PROPORTIONAL to the project's complexity — a simple app might have 8-12 stories total, while a complex platform could have 20-35
+- DO NOT always generate the same count of epics or stories — VARY them based on the actual description
 - Generate SPECIFIC, DETAILED content based on the ACTUAL requirements provided
 - DO NOT use generic placeholders or vague descriptions
 - Every Epic, User Story, and Test Case must be directly relevant to the project description
 - Include MEASURABLE METRICS in all acceptance criteria and expected results (e.g., "within 2 seconds", "at least 99.5%", "every 500 milliseconds", "within 3 meters")
 
 ANALYSIS INSTRUCTIONS:
-1. Identify {num_epics} major feature categories from the project description
+1. Identify the major feature categories from the project description — group small related features together rather than creating one epic per bullet point
 2. Each Epic should cover a distinct functional area (e.g., Authentication, Dashboard, Data Entry, Analytics, etc.)
 3. Number Epics sequentially: E1, E2, E3, E4, E5...
 4. User Stories should be numbered per Epic: E1-US1, E1-US2, E2-US1, E2-US2, etc.
@@ -106,8 +113,7 @@ ANALYSIS INSTRUCTIONS:
 PROJECT DESCRIPTION:
 {description}
 
-Generate {num_epics} comprehensive EPICs (E1 through E{num_epics}), each representing a DIFFERENT major feature area.
-Each Epic must have {num_stories_per_epic} detailed USER STORIES.
+Analyze the description above and generate an APPROPRIATE number of Epics (between 3 and 10) with a VARYING number of User Stories per Epic (1-5 based on complexity).
 Each User Story must have exactly 1 Test Case.
 Output must follow this EXACT format (plain text, not markdown):
 
@@ -144,13 +150,14 @@ Now generate the documentation using ONLY specific details from the project desc
 
     def _count_features(self, description: str) -> int:
         """
-        Analyze project description and count distinct features
+        Analyze project description and estimate appropriate epic count.
+        Groups related features together rather than 1:1 mapping.
 
         Args:
             description: Project description text
 
         Returns:
-            Number of features detected (minimum 3, maximum 15)
+            Recommended number of epics (3-10)
         """
         import re
 
@@ -172,29 +179,45 @@ Now generate the documentation using ONLY specific details from the project desc
         # Use the highest count found
         feature_count = max(numbered_features, bullet_features, core_features_count)
 
-        # Default to 5 if no clear structure found, otherwise clamp between 3-15
+        # Scale down: group related features into epics
+        # Many listed features are sub-features that should be stories, not epics
         if feature_count == 0:
-            return 5
-        return max(3, min(15, feature_count))
+            # Short description with no structure — estimate from word count
+            word_count = len(description.split())
+            if word_count < 30:
+                return 3
+            elif word_count < 80:
+                return 4
+            else:
+                return 5
+        elif feature_count <= 4:
+            return feature_count
+        elif feature_count <= 8:
+            # Group slightly: 5-8 features → 4-6 epics
+            return max(4, min(6, feature_count - 1))
+        else:
+            # Many features: group into 5-8 epics, let stories handle detail
+            return max(5, min(8, feature_count // 2 + 1))
 
     def generate_quick_summary(self, project_description: str) -> Dict:
         """
-        Generate comprehensive documentation with multiple epics
-        Analyzes the description and breaks it into multiple major feature areas
+        Generate comprehensive documentation with multiple epics.
+        Analyzes the description and breaks it into appropriate feature areas.
+        Story count per epic varies based on feature complexity (1-5).
 
         Args:
             project_description: Project description
 
         Returns:
-            Comprehensive documentation with multiple epics
+            Comprehensive documentation with varying epics and stories
         """
-        # Dynamically determine number of epics based on features in description
+        # Dynamically determine approximate epic count based on features in description
         num_epics = self._count_features(project_description)
 
         return self.generate_comprehensive_documentation(
             project_description,
-            num_epics=num_epics,  # Dynamic epic count based on feature analysis
-            num_stories_per_epic=2,  # 2 user stories per epic for detailed coverage
+            num_epics=num_epics,
+            num_stories_per_epic=0,  # 0 = let AI decide (1-5 per epic based on complexity)
             include_test_cases=True
         )
 
